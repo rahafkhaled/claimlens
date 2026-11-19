@@ -268,7 +268,7 @@ export function Review({
                 >
                   Flag estimate issues
                 </button>
-                <div className="approval-submit"><button
+                <button
                   className={pending ? "secondary" : "primary"}
                   disabled={pending}
                   onClick={() =>
@@ -284,7 +284,7 @@ export function Review({
                 >
                   Submit for approval
                   <ArrowUpRight />
-                </button><small>Senior adjuster</small></div>
+                </button>
               </>
             )}
             {role === "agent" && stage === "corrections" && (

@@ -1,5 +1,5 @@
 "use client";
-import { ArrowRight, Check, ChevronDown, LoaderCircle } from "lucide-react";
+import { ArrowRight, Check, ChevronDown } from "lucide-react";
 import { type Claim, needsScopeReview, requiresInspection, money, total } from "@/lib/claims";
 import type { ReviewRun } from "@/lib/review-progress";
 import { WorkflowMap } from "./WorkflowMap";
@@ -27,14 +27,21 @@ export function AnalysisPanel({ claim, run, canAct, detailsOpen, setDetailsOpen,
 }) {
   const running = !!run && run.phase !== "complete" && run.phase !== "error";
   const result = outcome(claim, run, canAct);
-  const steps = ["Checking photo quality", "Assessing accident damage", "Preparing estimate"];
-  const step = run?.phase === "pricing" ? 2 : run?.phase === "damage" ? 1 : 0;
+  const steps = ["Photo quality", "Evidence decision", "Accident damage", "Repair pricing"];
+  const step = run?.phase === "pricing" ? 3 : run?.phase === "damage" ? 2 : run?.phase === "decision" ? 1 : 0;
+  const stageDetail = run?.phase === "loading" ? "Preparing the submitted evidence" : [
+    "LLM · Checking photo quality",
+    "Decision Model · Checking evidence completeness",
+    "LLM · Assessing accident-related damage",
+    "Matching repairs to the pricing catalogue",
+  ][step];
   const blockedAction = result.action === "analyze" && !canAct;
-  return <section id="claim-review-progress" className="analysis-panel" aria-label="Claim review progress">
+  return <section id="claim-review-progress" className="analysis-panel" data-running={running} aria-label="Claim review progress">
     <div className="analysis-summary">
       <div className="analysis-summary-copy" role="status" aria-atomic="true">
-        <span className="analysis-eyebrow">{running ? "Evidence analysis" : "Analysis outcome"}</span>
-        <h2>{running ? <><LoaderCircle size={19} className="spin" />Analyzing evidence</> : result.title}</h2>
+        {!running && <span className="analysis-eyebrow">Analysis outcome</span>}
+        <h2 tabIndex={-1}>{running ? "Analyzing evidence" : result.title}</h2>
+        {running && <p>{stageDetail}</p>}
         {!running && <p role={run?.phase === "error" ? "alert" : undefined}>{result.detail}</p>}
       </div>
       {!running && !blockedAction && <button className="primary" onClick={() => onAction(result.action)}>{result.label}<ArrowRight size={15} /></button>}

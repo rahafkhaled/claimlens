@@ -147,7 +147,7 @@ export default function Workspace() {
     setOverlay(null);
     setShowProgress(true);
     setDetailsOpen(false);
-    go("evidence");
+    if (tab !== "evidence") go("evidence");
     setReviewRun({ claimId: start.id, phase: "loading", completed: [], decision: step === "damage" ? start.decision : null, summary: step === "damage" ? start.quality : "" });
     const emit = (event: ReviewEvent) => setReviewRun(old => old ? advanceReview(old, event) : old);
     const finish = (outcome: Claim["stage"]) => setReviewRun(old => old ? { ...old, phase: "complete", outcome } : old);
@@ -283,6 +283,7 @@ export default function Workspace() {
       reviewing={!!busy}
       primaryAnalysis={!hasAnalysis || needsScopeReview(c)}
       outcomeVisible={progressVisible}
+      analysisPanel={progressVisible && tab === "evidence" ? <AnalysisPanel claim={c} run={activeRun} canAct={role === "agent" && c.stage !== "senior" && c.stage !== "authorized"} detailsOpen={detailsOpen} setDetailsOpen={setDetailsOpen} onAction={analysisAction} /> : undefined}
     />
   );
   const resolution = !progressVisible && role === "agent" && (c.stage === "uncertain" || c.stage === "missing") && (
@@ -387,7 +388,7 @@ export default function Workspace() {
               </button>
             </div>
           )}
-          {progressVisible && <AnalysisPanel claim={c} run={activeRun} canAct={role === "agent" && c.stage !== "senior" && c.stage !== "authorized"} detailsOpen={detailsOpen} setDetailsOpen={setDetailsOpen} onAction={analysisAction} />}
+          {progressVisible && tab !== "evidence" && <AnalysisPanel claim={c} run={activeRun} canAct={role === "agent" && c.stage !== "senior" && c.stage !== "authorized"} detailsOpen={detailsOpen} setDetailsOpen={setDetailsOpen} onAction={analysisAction} />}
           <SeniorFrame role={role} claims={claims} active={c.id} select={id => { setActive(id); setShowProgress(true); setDetailsOpen(false); go("estimate"); setError(""); }}>
           {needsScopeReview(c) && c.lines.length > 0 && <p className="scope-notice">Analyze evidence against the accident description before approving this estimate.</p>}
           {role === "senior" && c.stage !== "senior" && c.stage !== "authorized" && <p className="scope-notice">This claim has not been submitted for senior approval.</p>}

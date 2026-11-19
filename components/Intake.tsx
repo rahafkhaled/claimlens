@@ -22,7 +22,7 @@ export function Intake({
     [vehicle, setVehicle] = useState(""),
     [details, setDetails] = useState("");
   const pendingRequests = existing?.evidenceRequests?.filter(request => request.status === "awaiting") ?? [];
-  const [responseIds, setResponseIds] = useState(() => pendingRequests.map(request => request.id));
+  const [responseIds, setResponseIds] = useState<string[]>([]);
   const input = useRef<HTMLInputElement>(null);
   async function add(files: FileList) {
     setError("");

@@ -104,6 +104,8 @@ async function until(page, predicate) {
     // Received evidence is an explicit, separate action, never auto-reviewed.
     await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Record received evidence', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Record received evidence', exact: true });
+    assert.equal(await dialog.locator('input[type=checkbox]:checked').count(), 0);
+    await dialog.locator('input[type=checkbox]').first().check();
     await dialog.getByLabel('Response / inspection notes').fill('Policyholder supplied the requested close-up.');
     await dialog.locator('input[type=file]').setInputFiles({ name: 'bumper-response.jpg', mimeType: 'image/jpeg', buffer: fs.readFileSync('public/evidence/bmw/5.jpg') });
     await dialog.getByText('bumper-response.jpg', { exact: true }).waitFor();
@@ -123,7 +125,8 @@ async function until(page, predicate) {
     await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Record received evidence', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Record received evidence', exact: true });
     await dialog.getByLabel('Response / inspection notes').fill('Bumper mount inspected by the repair shop.');
-    await dialog.locator('input[type=checkbox]').nth(1).uncheck();
+    assert.equal(await dialog.locator('input[type=checkbox]:checked').count(), 0);
+    await dialog.locator('input[type=checkbox]').first().check();
     await dialog.getByRole('button', { name: 'Save received evidence', exact: true }).click();
     data = await until(page, data => data.claims[0].evidenceRequests?.[1].status === 'received');
     assert.equal(data.claims[0].evidenceRequests[2].status, 'awaiting');

@@ -1,9 +1,14 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import { Maximize2, Plus, Play, ScanLine, LoaderCircle } from "lucide-react";
 import { type Claim, type Photo, money } from "@/lib/claims";
 import { Modal } from "./ui";
 import { EvidenceRequests } from "./EvidenceRequest";
+import { EvidenceScan } from "./EvidenceScan";
+
+gsap.registerPlugin(useGSAP);
 
 const clock = (seconds: number) =>
   Math.floor(seconds / 60) +
@@ -126,6 +131,7 @@ export function Evidence({
   readOnly = false,
   primaryAnalysis = true,
   outcomeVisible = false,
+  analysisPanel,
 }: {
   claim: Claim;
   onAdd: () => void;
@@ -136,11 +142,40 @@ export function Evidence({
   readOnly?: boolean;
   primaryAnalysis?: boolean;
   outcomeVisible?: boolean;
+  analysisPanel?: ReactNode;
 }) {
   const [index, setIndex] = useState(0),
     [expanded, setExpanded] = useState(false);
   const i = Math.min(index, claim.photos.length - 1),
     file = claim.photos[i];
+  const dock = useRef<HTMLDivElement>(null);
+  const reviewRequested = useRef(false);
+  const hasPanel = !!analysisPanel;
+  function startReview() {
+    reviewRequested.current = true;
+    onReview();
+  }
+  useGSAP(() => {
+    const media = gsap.matchMedia();
+    media.add({ reduce: "(prefers-reduced-motion: reduce)", motion: "(prefers-reduced-motion: no-preference)" }, context => {
+      const reduce = context.conditions?.reduce;
+      const idle = dock.current?.querySelector<HTMLElement>(".analysis-idle");
+      const live = dock.current?.querySelector<HTMLElement>(".analysis-live");
+      if (!idle || !live) return;
+      const transferFocus = hasPanel && (reviewRequested.current || idle.contains(document.activeElement));
+      reviewRequested.current = false;
+      gsap.set(hasPanel ? idle : live, { autoAlpha: 0 });
+      gsap.fromTo(hasPanel ? live : idle, { autoAlpha: reduce ? 1 : 0, y: reduce ? 0 : 6 }, {
+        autoAlpha: 1, y: 0, duration: reduce ? 0 : .24, ease: "power3.out",
+        onComplete: () => {
+          if (transferFocus && (document.activeElement === document.body || idle.contains(document.activeElement))) {
+            live.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+          }
+        },
+      });
+    }, dock);
+    return () => media.revert();
+  }, { scope: dock, dependencies: [hasPanel, reviewing], revertOnUpdate: true });
   return (
     <section className="evidence-panel">
       <div className="section-head">
@@ -148,10 +183,13 @@ export function Evidence({
         <span>{claim.photos.length} files</span>
       </div>
       <div className="evidence-frame">
+        <div className="evidence-visual">
         <Media
           key={file.src}
           file={file}
         />
+        <EvidenceScan active={reviewing} />
+        </div>
         <div className="photo-caption">
           <span>
             <b>{String(i + 1).padStart(2, "0")}</b> {file.name}
@@ -189,16 +227,27 @@ export function Evidence({
           </button>
         )}
       </div>
+      <div ref={dock} className="evidence-analysis-dock" data-active={hasPanel} data-running={reviewing}>
+      <div className="analysis-idle" inert={hasPanel} aria-hidden={hasPanel}>
       <div className="evidence-actions">
         {!readOnly && claim.stage !== "authorized" && (
           <div className="button-row">
           <button className="secondary" disabled={locked} onClick={() => onRequest(i)}>Request evidence</button>
-          <button className={primaryAnalysis && !outcomeVisible ? "primary" : "secondary"} disabled={locked || claim.evidenceRequests?.some(request => request.status === "awaiting")} title={claim.evidenceRequests?.some(request => request.status === "awaiting") ? "Awaiting requested evidence" : undefined} onClick={onReview}>
+          <button className={primaryAnalysis && !outcomeVisible ? "primary" : "secondary"} disabled={locked || claim.evidenceRequests?.some(request => request.status === "awaiting")} title={claim.evidenceRequests?.some(request => request.status === "awaiting") ? "Awaiting requested evidence" : undefined} onClick={startReview}>
             {reviewing ? <LoaderCircle size={15} className="spin" /> : <ScanLine size={15} />}
             {reviewing ? "Analyzing…" : claim.decision || claim.lines.length ? "Reanalyze evidence" : "Analyze evidence"}
           </button>
           </div>
         )}
+      </div>
+      </div>
+      <div className="analysis-live" inert={!hasPanel} aria-hidden={!hasPanel}>
+        {analysisPanel}
+        {hasPanel && !reviewing && !readOnly && claim.stage !== "authorized" && <div className="analysis-secondary-actions evidence-actions">
+          <button className="text-button" disabled={locked} onClick={() => onRequest(i)}>Request evidence</button>
+          <button className="text-button" disabled={locked || claim.evidenceRequests?.some(request => request.status === "awaiting")} onClick={startReview}>Reanalyze evidence</button>
+        </div>}
+      </div>
       </div>
       <EvidenceRequests claim={claim} />
       {expanded && (
