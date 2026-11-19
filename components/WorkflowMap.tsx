@@ -1,5 +1,5 @@
 "use client";
-import { Check, Circle, LoaderCircle, ScanLine, GitBranch, Camera, Calculator, ClipboardCheck, ShieldCheck, FileCheck2, ArrowRight, AlertCircle } from "lucide-react";
+import { Check, Circle, LoaderCircle, ScanLine, GitBranch, Camera, Calculator, ClipboardCheck, ShieldCheck, FileCheck2, ArrowRight } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { type Claim, requiresInspection, needsScopeReview } from "@/lib/claims";
 import type { ReviewRun, ReviewStep } from "@/lib/review-progress";
@@ -18,8 +18,8 @@ function Node({ title, detail, state, icon, manual = false }: { title: string; d
 function Connector({ state }: { state: State }) {
   return <div className="review-connector" data-state={state} aria-hidden="true"><i /><span /></div>;
 }
-export function WorkflowMap({ claim, run, close, proceed, canRequest = true }: {
-  claim: Claim; canRequest?: boolean; run?: ReviewRun; close: () => void; proceed: () => void;
+export function WorkflowMap({ claim, run }: {
+  claim: Claim; run?: ReviewRun;
 }) {
   const running = !!run && run.phase !== "complete" && run.phase !== "error";
   const failed = run?.phase === "error";
@@ -40,12 +40,10 @@ export function WorkflowMap({ claim, run, close, proceed, canRequest = true }: {
   const reviewState: State = final || stage === "senior" ? "done" : stage === "review" || stage === "corrections" ? "active" : "waiting";
   const count = run?.findingCount ?? claim.findings.length;
   const unpriced = run?.unpricedCount ?? claim.lines.filter(l => l.needsQuote).length;
-  const labels: Record<string, string> = { loading: "Loading evidence", quality: "LLM is reviewing photos", decision: "Decision Model is deciding the route", damage: "LLM is assessing damage", pricing: "Matching catalogue entries", complete: "Review complete", error: "Review interrupted" };
-  return <section id="claim-review-progress" className="panel inline-review" aria-label="Claim review progress">
-    <div className="panel-head"><h2>Review progress</h2><button className="text-button" onClick={close}>Hide progress</button></div>
-    <div className="review-flow" aria-label="Claim review workflow">
+  const labels: Record<string, string> = { loading: "Loading evidence", quality: "LLM is reviewing photos", decision: "Decision Model is deciding the route", damage: "LLM is assessing damage", pricing: "Matching catalogue entries", complete: "Analysis complete", error: "Analysis interrupted" };
+  return <div className="review-flow" aria-label="Claim review workflow">
       <div className="review-flow-heading">
-        <span className="review-flow-kicker">{claim.id} / {run ? "Live review" : stale ? "Review required" : claim.stage === "intake" ? "Not reviewed" : claim.decision ? "Saved review" : "Claim review"}</span>
+        <span className="review-flow-kicker">{claim.id} / {run ? "Live analysis" : stale ? "Analysis required" : claim.stage === "intake" ? "Awaiting analysis" : claim.decision ? "Saved analysis" : "Claim analysis"}</span>
         <span role="status" className="review-flow-status">{run ? labels[run.phase] : final ? "Authorized" : "Current progress"}</span>
       </div>
       <div className="review-evidence-rail" data-scanning={running && (phase === "loading" || phase === "quality" || phase === "damage")} aria-label="Evidence being reviewed">
@@ -55,7 +53,7 @@ export function WorkflowMap({ claim, run, close, proceed, canRequest = true }: {
       <div className="review-automated">
         <Node title="Evidence" detail={`${claim.photos.length} files`} state={status("loading")} icon={<Camera size={18} />} />
         <Connector state={status("quality")} />
-        <Node title="LLM" detail="Quality & coverage" state={status("quality")} icon={<ScanLine size={18} />} />
+        <Node title="LLM" detail="Quality & completeness" state={status("quality")} icon={<ScanLine size={18} />} />
         <Connector state={status("decision")} />
         <div className="model-decision" data-state={status("decision")}>
           <Node title="Decision Model" detail={claim.override && !running ? "Agent override recorded" : "Evidence routing"} state={status("decision")} icon={<GitBranch size={18} />} />
@@ -87,13 +85,5 @@ export function WorkflowMap({ claim, run, close, proceed, canRequest = true }: {
         <Node manual title="Senior approval" detail="Confirm repair shop" state={final ? "done" : stage === "senior" ? "active" : "waiting"} icon={<ShieldCheck size={18} />} />
         <Node manual title="Authorization" detail="Download report" state={final ? "done" : "waiting"} icon={<FileCheck2 size={18} />} />
       </div>
-      {failed && <p className="review-flow-error" role="alert"><AlertCircle size={17} />{run.error} Your saved assessment is unchanged.</p>}
-      {!running && !failed && (stage === "missing" || stage === "uncertain" || inspection || quotes) && <p className="review-hold">
-        {stage === "missing" || stage === "uncertain" ? claim.request || claim.gaps.join(" ") || "An agent needs to review the evidence." : inspection ? "Record agent approval before submitting." : "Resolve the outstanding quotes before approval."}
-      </p>}
-      <div className="review-flow-actions">
-        {!running && !failed && <button className="primary" onClick={proceed}>{stage === "missing" ? (claim.evidenceRequests?.some(request => request.status === "awaiting") ? "View request" : canRequest ? "Request evidence" : "View evidence") : stage === "intake" ? "View evidence" : stage === "uncertain" ? "Check flagged evidence" : final ? "View authorization" : "Review estimate"}<ArrowRight size={15} /></button>}
-      </div>
-    </div>
-  </section>;
+    </div>;
 }

@@ -159,7 +159,7 @@ export type Photo = z.infer<typeof photoSchema>;
 export type Stage = z.infer<typeof stageSchema>;
 export type Claim = z.infer<typeof claimSchema>;
 export const stageLabels: Record<Stage, string> = {
-  intake: "Not reviewed",
+  intake: "Awaiting analysis",
   missing: "Evidence needed",
   uncertain: "Agent review",
   assessment: "Damage assessment",

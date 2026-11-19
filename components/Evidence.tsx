@@ -124,6 +124,8 @@ export function Evidence({
   locked = false,
   reviewing = false,
   readOnly = false,
+  primaryAnalysis = true,
+  outcomeVisible = false,
 }: {
   claim: Claim;
   onAdd: () => void;
@@ -132,6 +134,8 @@ export function Evidence({
   locked?: boolean;
   reviewing?: boolean;
   readOnly?: boolean;
+  primaryAnalysis?: boolean;
+  outcomeVisible?: boolean;
 }) {
   const [index, setIndex] = useState(0),
     [expanded, setExpanded] = useState(false);
@@ -189,9 +193,9 @@ export function Evidence({
         {!readOnly && claim.stage !== "authorized" && (
           <div className="button-row">
           <button className="secondary" disabled={locked} onClick={() => onRequest(i)}>Request evidence</button>
-          <button className="primary" disabled={locked || claim.evidenceRequests?.some(request => request.status === "awaiting")} title={claim.evidenceRequests?.some(request => request.status === "awaiting") ? "Awaiting requested evidence" : undefined} onClick={onReview}>
+          <button className={primaryAnalysis && !outcomeVisible ? "primary" : "secondary"} disabled={locked || claim.evidenceRequests?.some(request => request.status === "awaiting")} title={claim.evidenceRequests?.some(request => request.status === "awaiting") ? "Awaiting requested evidence" : undefined} onClick={onReview}>
             {reviewing ? <LoaderCircle size={15} className="spin" /> : <ScanLine size={15} />}
-            {reviewing ? "Reviewing…" : "Review evidence"}
+            {reviewing ? "Analyzing…" : claim.decision || claim.lines.length ? "Reanalyze evidence" : "Analyze evidence"}
           </button>
           </div>
         )}

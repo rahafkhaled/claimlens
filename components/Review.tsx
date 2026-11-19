@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Calculator,
   Download,
@@ -117,9 +117,11 @@ export function Review({
   save,
   request,
   onFinding,
+  focusRequirements,
 }: {
   c: Claim;
   role: ViewRole;
+  focusRequirements?: "inspection" | "pricing";
   onFinding: (i: number) => void;
   save: (c: Claim) => void;
   request: (type: "more" | "changes") => void;
@@ -144,6 +146,13 @@ export function Review({
   );
   const awaitingEvidence = c.evidenceRequests?.some(request => request.status === "awaiting");
   const pending = hasQuote || pendingInspection || needsScopeReview(c) || awaitingEvidence;
+  const requirementsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusRequirements) {
+      requirementsRef.current?.focus({ preventScroll: true });
+      requirementsRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }, [focusRequirements]);
   function startEdit() {
     setDraft(c.lines.map((l) => ({ ...l })));
     setObservations(c.findings.map((f) => ({ ...f })));
@@ -173,6 +182,14 @@ export function Review({
             <b>{money(total(c.lines))}</b>
             {(hasQuote || pendingInspection) && <small>{pendingInspection ? "Agent approval required" : "Quote required"}</small>}
           </div>
+          {(pendingInspection || hasQuote) && <div className="estimate-requirements" ref={requirementsRef} tabIndex={-1} role="region" aria-label="Estimate requirements">
+            <h3>{pendingInspection ? "Inspection requirements" : "Pricing gaps"}</h3>
+            <p>{pendingInspection ? "Record the inspection findings and agent approval for these items before submitting." : "Add an amount and pricing source for each outstanding item."}</p>
+            <ul>{c.lines.map((line, index) => {
+              const inspection = c.findings[index] && requiresInspection(c.findings[index]) && !line.inspectionNote?.trim();
+              return inspection || line.needsQuote ? <li key={index}><strong>{line.component}</strong><span>{[inspection && "Inspection findings and agent approval needed", line.needsQuote && "Price and source needed"].filter(Boolean).join(" · ")}</span></li> : null;
+            })}</ul>
+          </div>}
           <div className="table-scroll">
             <table>
               <thead>
@@ -235,7 +252,7 @@ export function Review({
           {role === "agent" && stage === "senior" && <p className="scope-notice">Submitted · awaiting senior adjuster approval.</p>}
           <div className="review-actions">
             {canEdit && (
-              <button className="secondary" onClick={startEdit}>
+              <button className={pendingInspection || hasQuote ? "primary" : "secondary"} onClick={startEdit}>
                 <PencilLine />
                 Edit estimate
               </button>
@@ -251,8 +268,8 @@ export function Review({
                 >
                   Flag estimate issues
                 </button>
-                <button
-                  className="primary"
+                <div className="approval-submit"><button
+                  className={pending ? "secondary" : "primary"}
                   disabled={pending}
                   onClick={() =>
                     save(
@@ -265,14 +282,14 @@ export function Review({
                     )
                   }
                 >
-                  Submit for senior approval
+                  Submit for approval
                   <ArrowUpRight />
-                </button>
+                </button><small>Senior adjuster</small></div>
               </>
             )}
             {role === "agent" && stage === "corrections" && (
               <button
-                className="primary"
+                className={pending ? "secondary" : "primary"}
                 disabled={pending}
                 onClick={() =>
                   save(
@@ -327,7 +344,7 @@ export function Review({
           <FileText />
           <h3>{awaitingEvidence ? "Awaiting policyholder evidence" : stage === "missing" ? "More evidence needed" : stage === "uncertain" ? "Agent review required" : c.excludedFindings?.length ? "No accident-related repairs confirmed" : "Estimate pending"}</h3>
           <p>
-            {awaitingEvidence ? "Record the policyholder response in Evidence before reviewing." : stage === "missing" ? "Request the missing views from the Evidence tab." : stage === "uncertain" ? "Resolve the flagged evidence before creating an estimate." : c.excludedFindings?.length ? "Check the accident description and observations below." : "Review evidence to create an estimate."}
+            {awaitingEvidence ? "Record the policyholder response in Evidence before analyzing." : stage === "missing" ? "Request the missing views from the Evidence tab." : stage === "uncertain" ? "Resolve the flagged evidence before creating an estimate." : c.excludedFindings?.length ? "Check the accident description and observations below." : "Analyze evidence to create an estimate."}
           </p>
         </div>
       )}
@@ -478,6 +495,10 @@ export function Review({
               placeholder="Name for the authorization record"
             />
           </label>
+          <dl className="authorization-summary" aria-label="Authorization summary">
+            <div><dt>Amount to authorize</dt><dd>{money(total(c.lines))}</dd></div>
+            <div><dt>Repair shop</dt><dd>{shop || "Select a repair shop above"}</dd></div>
+          </dl>
           <div className="modal-actions">
             <button className="secondary" onClick={() => setConfirm(false)}>
               Cancel

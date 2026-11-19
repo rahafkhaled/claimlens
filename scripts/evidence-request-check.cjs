@@ -30,7 +30,7 @@ async function until(page, predicate) {
     let apiCalls = 0;
     await page.route('**/api/analyze', route => { apiCalls++; return route.fulfill({ json: { quality: { summary: 'The detail is blurred.', gaps: ['Provide a clear bumper close-up.'] }, decision: { choice: 'missing', confidence: .95 } } }); });
     // The missing route now composes a request, never opens an upload form.
-    await page.getByRole('button', { name: 'Review evidence', exact: true }).click();
+    await page.locator('.evidence-actions').getByRole('button', { name: /^(Analyze|Reanalyze) evidence$/, exact: true }).click();
     const flow = page.getByRole('region', { name: 'Claim review progress' });
     await flow.getByRole('button', { name: 'Request evidence', exact: true }).click();
     let dialog = page.getByRole('dialog', { name: 'Request evidence', exact: true });
@@ -62,12 +62,12 @@ async function until(page, predicate) {
     assert.equal(record.pins[0].photoName, firstName); assert.equal(record.pins[1].x, 51);
     assert.equal(claim.log[0].title, 'Evidence requested'); assert.equal(apiCalls, 1);
     assert.equal((await page.locator('.case-state').innerText()).trim(), 'Awaiting evidence');
-    assert(await page.getByRole('button', { name: 'Review evidence', exact: true }).isDisabled());
+    assert(await page.locator('.evidence-actions').getByRole('button', { name: /^(Analyze|Reanalyze) evidence$/, exact: true }).isDisabled());
     await page.reload(); await ready(page);
-    assert(await page.locator('.action-note .primary').getByText('Record received evidence', { exact: true }).isVisible());
+    assert(await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Record received evidence', exact: true }).isVisible());
     await page.getByRole('button', { name: 'Estimate', exact: true }).click();
     await page.getByRole('heading', { name: 'Awaiting policyholder evidence', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Show review progress', exact: true }).click();
+    await page.getByRole('button', { name: 'View analysis details', exact: true }).click();
     await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'View request', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Evidence request', exact: true });
     assert.equal(await dialog.locator('.pin-comment').count(), 2);
@@ -102,7 +102,7 @@ async function until(page, predicate) {
     await dialog.getByRole('button', { name: 'Discard draft', exact: true }).click();
     assert.equal((await stored(page)).claims[0].evidenceRequests.length, 1);
     // Received evidence is an explicit, separate action, never auto-reviewed.
-    await page.locator('.action-note').getByRole('button', { name: 'Record received evidence', exact: true }).click();
+    await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Record received evidence', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Record received evidence', exact: true });
     await dialog.getByLabel('Response / inspection notes').fill('Policyholder supplied the requested close-up.');
     await dialog.locator('input[type=file]').setInputFiles({ name: 'bumper-response.jpg', mimeType: 'image/jpeg', buffer: fs.readFileSync('public/evidence/bmw/5.jpg') });
@@ -111,7 +111,7 @@ async function until(page, predicate) {
     data = await until(page, data => data.claims[0].stage === 'intake');
     assert.equal(data.claims[0].photos.length, 7); assert.equal(data.claims[0].evidenceRequests[0].status, 'received');
     assert.equal(data.claims[0].evidenceRequests[0].pins[0].photoId, record.pins[0].photoId);
-    assert.equal(apiCalls, 1); assert(await page.getByRole('button', { name: 'Review evidence', exact: true }).isEnabled());
+    assert.equal(apiCalls, 1); assert(await page.locator('.evidence-actions').getByRole('button', { name: /^(Analyze|Reanalyze) evidence$/, exact: true }).isEnabled());
     // Two requests can receive separate responses; one response must not clear both.
     await page.setViewportSize({ width: 1440, height: 1000 });
     for (const text of ['Confirm the bumper mount.', 'Confirm the lamp bracket.']) {
@@ -120,7 +120,7 @@ async function until(page, predicate) {
       await dialog.getByLabel('Request notes').fill(text);
       await dialog.getByRole('button', { name: 'Save evidence request', exact: true }).click();
     }
-    await page.locator('.action-note').getByRole('button', { name: 'Record received evidence', exact: true }).click();
+    await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Record received evidence', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Record received evidence', exact: true });
     await dialog.getByLabel('Response / inspection notes').fill('Bumper mount inspected by the repair shop.');
     await dialog.locator('input[type=checkbox]').nth(1).uncheck();
@@ -128,7 +128,7 @@ async function until(page, predicate) {
     data = await until(page, data => data.claims[0].evidenceRequests?.[1].status === 'received');
     assert.equal(data.claims[0].evidenceRequests[2].status, 'awaiting');
     assert.equal(data.claims[0].stage, 'missing');
-    assert(await page.getByRole('button', { name: 'Review evidence', exact: true }).isDisabled());
+    assert(await page.locator('.evidence-actions').getByRole('button', { name: /^(Analyze|Reanalyze) evidence$/, exact: true }).isDisabled());
     await page.getByRole('button', { name: 'Edit accident description', exact: true }).click();
     await page.getByRole('textbox', { name: 'Accident description', exact: true }).fill('Front-left collision with a parked car, damaging bumper and lamp.');
     await page.getByRole('button', { name: 'Save description', exact: true }).click();
