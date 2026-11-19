@@ -31,7 +31,7 @@ async function until(page, predicate) {
     await page.route('**/api/analyze', route => { apiCalls++; return route.fulfill({ json: { quality: { summary: 'The detail is blurred.', gaps: ['Provide a clear bumper close-up.'] }, decision: { choice: 'missing', confidence: .95 } } }); });
     // The missing route now composes a request, never opens an upload form.
     await page.getByRole('button', { name: 'Review evidence', exact: true }).click();
-    const flow = page.getByRole('dialog', { name: 'Claim workflow' });
+    const flow = page.getByRole('region', { name: 'Claim review progress' });
     await flow.getByRole('button', { name: 'Request evidence', exact: true }).click();
     let dialog = page.getByRole('dialog', { name: 'Request evidence', exact: true });
     await dialog.waitFor();
@@ -40,7 +40,7 @@ async function until(page, predicate) {
     await dialog.getByLabel('Request notes').fill('Please photograph only the accident damage.');
     const surface = dialog.getByRole('button', { name: 'Place a pin on this photo' });
     await surface.click({ position: { x: 130, y: 100 } });
-    assert(await dialog.getByRole('button', { name: 'Request evidence', exact: true }).isDisabled());
+    assert(await dialog.getByRole('button', { name: 'Save evidence request', exact: true }).isDisabled());
     await dialog.getByLabel('Comment for pin 1').fill('Retake this bumper corner in daylight.');
     const firstName = await dialog.locator('.request-photo-label span').first().innerText();
     await dialog.locator('.request-filmstrip button').nth(4).click();
@@ -55,7 +55,7 @@ async function until(page, predicate) {
     assert.equal(await dialog.locator('select').count(), 0);
     assert.equal((await dialog.locator('.request-recipient').innerText()).trim(), 'To Policyholder');
     await page.screenshot({ path: '/tmp/claimlens-request-desktop.png', fullPage: true });
-    await dialog.getByRole('button', { name: 'Request evidence', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Save evidence request', exact: true }).click();
     let data = await until(page, data => data.claims[0].evidenceRequests?.length === 1);
     let claim = data.claims[0]; const record = claim.evidenceRequests[0];
     assert.equal(claim.stage, 'missing'); assert.equal(record.recipient, 'Policyholder'); assert.equal(record.pins.length, 2);
@@ -67,8 +67,8 @@ async function until(page, predicate) {
     assert(await page.locator('.action-note .primary').getByText('Record received evidence', { exact: true }).isVisible());
     await page.getByRole('button', { name: 'Estimate', exact: true }).click();
     await page.getByRole('heading', { name: 'Awaiting policyholder evidence', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Workflow', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Claim workflow' }).getByRole('button', { name: 'View request', exact: true }).click();
+    await page.getByRole('button', { name: 'Show review progress', exact: true }).click();
+    await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'View request', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Evidence request', exact: true });
     assert.equal(await dialog.locator('.pin-comment').count(), 2);
     assert.equal(await dialog.locator('textarea').count(), 0);
@@ -107,7 +107,7 @@ async function until(page, predicate) {
     await dialog.getByLabel('Response / inspection notes').fill('Policyholder supplied the requested close-up.');
     await dialog.locator('input[type=file]').setInputFiles({ name: 'bumper-response.jpg', mimeType: 'image/jpeg', buffer: fs.readFileSync('public/evidence/bmw/5.jpg') });
     await dialog.getByText('bumper-response.jpg', { exact: true }).waitFor();
-    await dialog.getByRole('button', { name: 'Record response', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Save received evidence', exact: true }).click();
     data = await until(page, data => data.claims[0].stage === 'intake');
     assert.equal(data.claims[0].photos.length, 7); assert.equal(data.claims[0].evidenceRequests[0].status, 'received');
     assert.equal(data.claims[0].evidenceRequests[0].pins[0].photoId, record.pins[0].photoId);
@@ -118,13 +118,13 @@ async function until(page, predicate) {
       await page.locator('.evidence-actions').getByRole('button', { name: 'Request evidence', exact: true }).click();
       dialog = page.getByRole('dialog', { name: 'Request evidence', exact: true });
       await dialog.getByLabel('Request notes').fill(text);
-      await dialog.getByRole('button', { name: 'Request evidence', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Save evidence request', exact: true }).click();
     }
     await page.locator('.action-note').getByRole('button', { name: 'Record received evidence', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Record received evidence', exact: true });
     await dialog.getByLabel('Response / inspection notes').fill('Bumper mount inspected by the repair shop.');
     await dialog.locator('input[type=checkbox]').nth(1).uncheck();
-    await dialog.getByRole('button', { name: 'Record response', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Save received evidence', exact: true }).click();
     data = await until(page, data => data.claims[0].evidenceRequests?.[1].status === 'received');
     assert.equal(data.claims[0].evidenceRequests[2].status, 'awaiting');
     assert.equal(data.claims[0].stage, 'missing');

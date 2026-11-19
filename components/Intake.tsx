@@ -39,7 +39,7 @@ export function Intake({
   }
   return (
     <Modal
-      title={existing ? "Record received evidence" : "Open claim"}
+      title={existing ? "Record received evidence" : "Create claim"}
       close={close}
     >
       <form
@@ -250,7 +250,7 @@ export function Intake({
             Cancel
           </button>
           <button className="primary" disabled={filesBusy}>
-            {existing ? "Record response" : "Open claim"}
+            {existing ? "Save received evidence" : "Create claim"}
             <ArrowRight size={15} />
           </button>
         </div>

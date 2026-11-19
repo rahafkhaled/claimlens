@@ -3,7 +3,7 @@ import { Check, Circle, LoaderCircle, ScanLine, GitBranch, Camera, Calculator, C
 import type { CSSProperties, ReactNode } from "react";
 import { type Claim, requiresInspection, needsScopeReview } from "@/lib/claims";
 import type { ReviewRun, ReviewStep } from "@/lib/review-progress";
-import { Modal } from "./ui";
+
 
 type State = "waiting" | "active" | "done";
 function Node({ title, detail, state, icon, manual = false }: { title: string; detail: string; state: State; icon: ReactNode; manual?: boolean }) {
@@ -41,7 +41,8 @@ export function WorkflowMap({ claim, run, close, proceed, canRequest = true }: {
   const count = run?.findingCount ?? claim.findings.length;
   const unpriced = run?.unpricedCount ?? claim.lines.filter(l => l.needsQuote).length;
   const labels: Record<string, string> = { loading: "Loading evidence", quality: "LLM is reviewing photos", decision: "Decision Model is deciding the route", damage: "LLM is assessing damage", pricing: "Matching catalogue entries", complete: "Review complete", error: "Review interrupted" };
-  return <Modal title="Claim workflow" wide close={close}>
+  return <section id="claim-review-progress" className="panel inline-review" aria-label="Claim review progress">
+    <div className="panel-head"><h2>Review progress</h2><button className="text-button" onClick={close}>Hide progress</button></div>
     <div className="review-flow" aria-label="Claim review workflow">
       <div className="review-flow-heading">
         <span className="review-flow-kicker">{claim.id} / {run ? "Live review" : stale ? "Review required" : claim.stage === "intake" ? "Not reviewed" : claim.decision ? "Saved review" : "Claim review"}</span>
@@ -91,9 +92,8 @@ export function WorkflowMap({ claim, run, close, proceed, canRequest = true }: {
         {stage === "missing" || stage === "uncertain" ? claim.request || claim.gaps.join(" ") || "An agent needs to review the evidence." : inspection ? "Record agent approval before submitting." : "Resolve the outstanding quotes before approval."}
       </p>}
       <div className="review-flow-actions">
-        <button className="secondary" onClick={close}>{running ? "Keep reviewing in background" : "Close"}</button>
-        {!running && !failed && <button className="primary" onClick={proceed}>{stage === "missing" ? (claim.evidenceRequests?.some(request => request.status === "awaiting") ? "View request" : canRequest ? "Request evidence" : "View evidence") : stage === "intake" ? "View evidence" : stage === "uncertain" ? "Review evidence" : final ? "View authorization" : "Review estimate"}<ArrowRight size={15} /></button>}
+        {!running && !failed && <button className="primary" onClick={proceed}>{stage === "missing" ? (claim.evidenceRequests?.some(request => request.status === "awaiting") ? "View request" : canRequest ? "Request evidence" : "View evidence") : stage === "intake" ? "View evidence" : stage === "uncertain" ? "Check flagged evidence" : final ? "View authorization" : "Review estimate"}<ArrowRight size={15} /></button>}
       </div>
     </div>
-  </Modal>;
+  </section>;
 }

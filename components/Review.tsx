@@ -249,7 +249,7 @@ export function Review({
                   className="secondary"
                   onClick={() => request("changes")}
                 >
-                  Flag items
+                  Flag estimate issues
                 </button>
                 <button
                   className="primary"
@@ -265,7 +265,7 @@ export function Review({
                     )
                   }
                 >
-                  Submit to adjuster
+                  Submit for senior approval
                   <ArrowUpRight />
                 </button>
               </>
@@ -286,7 +286,7 @@ export function Review({
                 }
               >
                 <CheckCheck />
-                Resolve flagged items
+                Mark corrections complete
               </button>
             )}
             {role === "senior" && stage === "senior" && (
@@ -317,7 +317,7 @@ export function Review({
             {stage !== "authorized" && (
               <button className="text-button" onClick={() => downloadReport(c)}>
                 <Download />
-                Draft report
+                Download draft report
               </button>
             )}
           </div>
@@ -511,7 +511,7 @@ export function Review({
                 setConfirm(false);
               }}
             >
-              Authorize estimate
+              Confirm authorization
             </button>
           </div>
         </Modal>

@@ -124,7 +124,7 @@ export function EvidenceRequestEditor({ claim, initialIndex = 0, record, close, 
       </div>
       <div className="request-footer">
         <small>Saved to this claim only; no message is sent.</small>
-        {!readOnly && <button className="primary" disabled={!valid}>Request evidence <ArrowRight size={15} /></button>}
+        {!readOnly && <button className="primary" disabled={!valid}>Save evidence request <ArrowRight size={15} /></button>}
       </div>
       {discard && <div className="request-discard" role="alert"><span>Discard this draft request?</span><button type="button" className="secondary" onClick={() => setDiscard(false)}>Keep editing</button><button type="button" className="secondary" onClick={close}>Discard draft</button></div>}
     </form>

@@ -39,7 +39,7 @@ import { Intake } from "./Intake";
 import { Activity, Review } from "./Review";
 
 type Tab = "evidence" | "estimate" | "activity";
-type Overlay = "new" | "add" | "queue" | "more" | "changes" | "workflow" | "reset" | "reanalyze" | null;
+type Overlay = "new" | "add" | "queue" | "more" | "changes" | "reset" | "reanalyze" | null;
 const navigation = [
   { id: "evidence", name: "Evidence" },
   { id: "estimate", name: "Estimate" },
@@ -65,6 +65,7 @@ export default function Workspace() {
   const [requestPhoto, setRequestPhoto] = useState(0);
   const [viewedRequest, setViewedRequest] = useState<EvidenceRequest>();
   const [role, setRole] = useState<ViewRole>("agent");
+  const [showProgress, setShowProgress] = useState(false);
   const [reviewRun, setReviewRun] = useState<ReviewRun>();
   const c = claims.find((x) => x.id === active) ?? claims[0];
   const awaitingEvidence = c.evidenceRequests?.some(request => request.status === "awaiting") ?? false;
@@ -137,7 +138,9 @@ export default function Workspace() {
     setError("");
     setBusy("Loading photos…");
     setSelectedFinding(null);
-    setOverlay("workflow");
+    setOverlay(null);
+    setShowProgress(true);
+    go("evidence");
     setReviewRun({ claimId: start.id, phase: "loading", completed: [], decision: step === "damage" ? start.decision : null, summary: step === "damage" ? start.quality : "" });
     const emit = (event: ReviewEvent) => setReviewRun(old => old ? advanceReview(old, event) : old);
     const finish = (outcome: Claim["stage"]) => setReviewRun(old => old ? { ...old, phase: "complete", outcome } : old);
@@ -226,7 +229,6 @@ export default function Workspace() {
           ),
         );
         finish("uncertain");
-        go("estimate");
         return;
       }
       save(
@@ -238,7 +240,6 @@ export default function Workspace() {
         ),
       );
       finish("review");
-      go("estimate");
     } catch (e) {
       emit({ type: "error", error: e instanceof Error ? e.message : "Analysis failed. Please retry." });
       setError(
@@ -291,7 +292,7 @@ export default function Workspace() {
                 void analyze(next, "damage");
               }}
             >
-              Accept evidence
+              Accept & assess damage
               <Check />
             </button>
           </>
@@ -320,8 +321,8 @@ export default function Workspace() {
           </div>
           <nav aria-label="Claims">
             {role === "agent" && <button className="plain" onClick={() => open("queue")} disabled={!ready || !!busy}><FolderClosed size={16} />All claims</button>}
-            {role === "agent" && <button className="secondary" onClick={() => open("new")} disabled={!ready || !!busy}><Plus size={15} />Open claim</button>}
-            <ViewSwitcher role={role} disabled={!ready || !!busy} change={next => { setRole(next); open(null); setError(""); if (next === "senior") { const first = claims.find(item => item.stage === "senior"); if (first) setActive(first.id); go("estimate"); } else go("evidence"); }} />
+            {role === "agent" && <button className="secondary" onClick={() => open("new")} disabled={!ready || !!busy}><Plus size={15} />Create claim</button>}
+            <ViewSwitcher role={role} disabled={!ready || !!busy} change={next => { setRole(next); setShowProgress(false); open(null); setError(""); if (next === "senior") { const first = claims.find(item => item.stage === "senior"); if (first) setActive(first.id); go("estimate"); } else go("evidence"); }} />
           </nav>
           </div>
           <div className="file-head">
@@ -351,12 +352,12 @@ export default function Workspace() {
                 </button>
               ))}
             </nav>
-            <button className="workflow-link" onClick={() => open("workflow")}>
+            <button className="workflow-link" aria-expanded={showProgress} aria-controls="claim-review-progress" onClick={() => setShowProgress(value => !value)}>
               <GitBranch size={14} />
-              Workflow
+              {showProgress ? "Hide review progress" : "Show review progress"}
             </button>
           </div>
-          {error && overlay !== "workflow" && (
+          {error && !showProgress && (
             <div className="error banner" role="alert">
               {error}
               <button aria-label="Dismiss error" onClick={() => setError("")}>
@@ -364,12 +365,19 @@ export default function Workspace() {
               </button>
             </div>
           )}
-          {busy && overlay !== "workflow" && (
-            <button className="review-progress-strip" onClick={() => open("workflow")}>
-              <span className="review-progress-dot" /><span>{reviewRun?.phase === "decision" ? "Decision Model is deciding the route…" : busy}</span><span>View workflow <ArrowRight size={14} /></span>
-            </button>
+          {busy && !showProgress && <div className="review-progress-strip" role="status"><span className="review-progress-dot" /><span>{busy}</span></div>}
+          {showProgress && (
+            <WorkflowMap claim={c} canRequest={role === "agent"} run={reviewRun?.claimId === c.id ? reviewRun : undefined} close={() => setShowProgress(false)} proceed={() => {
+              setShowProgress(false);
+              if (c.stage === "missing") {
+                go("evidence");
+                const latest = [...(c.evidenceRequests ?? [])].reverse().find(item => item.status === "awaiting");
+                if (latest) setViewedRequest(latest);
+                else if (role === "agent") request("more");
+              } else go(c.stage === "intake" || c.stage === "uncertain" ? "evidence" : "estimate");
+            }} />
           )}
-          <SeniorFrame role={role} claims={claims} active={c.id} select={id => { setActive(id); go("estimate"); setError(""); }}>
+          <SeniorFrame role={role} claims={claims} active={c.id} select={id => { setActive(id); setShowProgress(false); go("estimate"); setError(""); }}>
           {needsScopeReview(c) && c.lines.length > 0 && <p className="scope-notice">Review evidence against the accident description before approving this estimate.</p>}
           {role === "senior" && c.stage !== "senior" && c.stage !== "authorized" && <p className="scope-notice">This claim has not been submitted for senior approval.</p>}
           {tab === "estimate" ? (
@@ -408,6 +416,7 @@ export default function Workspace() {
           save={(next) => {
             save(next);
             setActive(next.id);
+            setShowProgress(false);
             setError("");
             go("evidence");
             open(null);
@@ -436,6 +445,7 @@ export default function Workspace() {
                   key={x.id}
                   onClick={() => {
                     setActive(x.id);
+                    setShowProgress(false);
                     go("evidence");
                     setError("");
                     open(null);
@@ -468,7 +478,7 @@ export default function Workspace() {
         }} />
       )}
       {overlay === "changes" && (
-        <Modal title="Request corrections" close={() => open(null)}>
+        <Modal title={role === "senior" ? "Return estimate for changes" : "Flag estimate issues"} close={() => open(null)}>
           <form onSubmit={event => {
             event.preventDefault();
             if (!note.trim()) return;
@@ -478,7 +488,7 @@ export default function Workspace() {
             <label>Flagged items or quote needed
               <textarea autoFocus required rows={4} value={note} maxLength={800} onChange={event => setNote(event.target.value)} />
             </label>
-            <button className="primary" disabled={!note.trim()}>Save request <ArrowRight /></button>
+            <button className="primary" disabled={!note.trim()}>{role === "senior" ? "Return estimate" : "Save flagged issues"} <ArrowRight /></button>
           </form>
         </Modal>
       )}
@@ -487,7 +497,7 @@ export default function Workspace() {
           <p>A new AI review will replace this draft and its edits.</p>
           <div className="modal-actions">
             <button className="secondary" onClick={() => open(null)}>Cancel</button>
-            <button className="primary" onClick={() => { open(null); void analyze(c, "quality"); }}>Review photos</button>
+            <button className="primary" onClick={() => { open(null); void analyze(c, "quality"); }}>Run review again</button>
           </div>
         </Modal>
       )}
@@ -499,22 +509,11 @@ export default function Workspace() {
             <button className="primary" onClick={() => {
               setClaims((old) => [...demoClaims.map((d) => old.find((x) => x.id === d.id && !x.sample) ?? d), ...old.filter((x) => !demoClaims.some((d) => d.id === x.id))]);
               setActive(sample.id); setReviewRun(undefined); setError(""); go("evidence"); open(null);
-            }}>Reset samples</button>
+            }}>Reset sample claims</button>
           </div>
         </Modal>
       )}
-      {overlay === "workflow" && (
-        <WorkflowMap claim={c} canRequest={role === "agent"} run={reviewRun?.claimId === c.id ? reviewRun : undefined} close={() => open(null)} proceed={() => {
-          open(null);
-          if (c.stage === "missing") {
-            go("evidence");
-            const latest = [...(c.evidenceRequests ?? [])].reverse().find(request => request.status === "awaiting");
-            if (latest) setViewedRequest(latest);
-            else if (role === "agent") request("more");
-          }
-          else go(c.stage === "intake" || c.stage === "uncertain" ? "evidence" : "estimate");
-        }} />
-      )}
+
     </div>
   );
 }

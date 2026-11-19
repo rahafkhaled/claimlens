@@ -1417,7 +1417,6 @@ body { background: var(--page); }
 .senior-claim b { font-size: 14px; font-weight: 550; font-variant-numeric: tabular-nums; }
 .senior-content { min-width: 0; }
 /* Live review: a connected instrument panel, driven by provider events. */
-.modal.wide:has(.review-flow) { width: min(800px, calc(100vw - 24px)); }
 .review-flow-heading { margin-bottom: 16px; }
 .review-flow-kicker { text-transform: none; letter-spacing: 0; }
 .review-flow-status { color: #c7d8ef; }
@@ -1537,3 +1536,15 @@ body { background: var(--page); }
 
 .request-recipient { margin-bottom: 18px; color: var(--muted); font-size: 13px; }
 .request-recipient strong { margin-left: 6px; color: var(--ink); font-weight: 500; }
+
+/* Review progress stays in the claim workspace, without a backdrop or focus trap. */
+.inline-review { margin-bottom: 24px; min-width: 0; }
+.inline-review > .review-flow { padding: 22px; }
+.inline-review .review-flow-actions { position: static; background: transparent; padding-bottom: 0; }
+.inline-review .review-flow-actions:empty { display: none; }
+.inline-review .panel-head .text-button { min-height: 44px; }
+@media (max-width: 600px) {
+  .inline-review > .review-flow { padding: 14px; }
+  .file-navigation { flex-wrap: wrap; gap: 8px; }
+  .workflow-link { min-height: 44px; font-size: 12px; width: auto; padding: 0; }
+}

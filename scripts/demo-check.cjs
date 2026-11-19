@@ -72,8 +72,8 @@ async function untilStored(p, predicate) {
       assert.equal(await p.locator('.action-note,.scope-notice').count(), 0);
       await p.getByRole('button', { name: 'Estimate', exact: true }).click();
       assert.equal(await p.locator('.estimate-total').count(), 0);
-      await p.getByRole('button', { name: 'Workflow', exact: true }).click();
-      const flow = p.getByRole('dialog', { name: 'Claim workflow' });
+      await p.getByRole('button', { name: 'Show review progress', exact: true }).click();
+      const flow = p.getByRole('region', { name: 'Claim review progress' });
       assert.equal(await flow.locator('.decision-branch[data-selected="true"]').count(), 0);
       assert.equal(await flow.locator('.decision-receipt').innerText(), 'Decision pending');
       assert.equal(await flow.getByRole('button', { name: 'Review estimate', exact: true }).count(), 0);
@@ -84,9 +84,9 @@ async function untilStored(p, predicate) {
     for (const claim of original.claims) {
       await choose(p, claim.id);
       await p.getByRole('button', { name: 'Review evidence', exact: true }).click();
-      const flow = p.getByRole('dialog', { name: 'Claim workflow' });
+      const flow = p.getByRole('region', { name: 'Claim review progress' });
       await flow.getByText('Review complete', { exact: true }).waitFor();
-      await flow.getByRole('button', { name: 'Close', exact: true }).click();
+      await flow.getByRole('button', { name: 'Hide progress', exact: true }).click();
       await untilStored(p, d => d.claims.find(c => c.id === claim.id).decisionSource === 'jev');
     }
     assert.equal(reviewCalls, 6);
@@ -107,39 +107,39 @@ async function untilStored(p, predicate) {
     await choose(p, 'CLM-2085');
     await p.locator('.action-note').getByText('Evidence needed', { exact: true }).waitFor();
     await choose(p, 'CLM-2086');
-    assert(await p.getByRole('button', { name: 'Accept evidence' }).isEnabled());
+    assert(await p.getByRole('button', { name: 'Accept & assess damage' }).isEnabled());
     await choose(p, 'CLM-2087');
     await p.getByRole('button', { name: 'Estimate', exact: true }).click();
-    assert(await p.getByRole('button', { name: 'Submit to adjuster' }).isDisabled());
+    assert(await p.getByRole('button', { name: 'Submit for senior approval' }).isDisabled());
     await p.getByRole('button', { name: 'Edit estimate' }).click();
     await p.getByLabel('Labor (QAR)').last().fill('500');
     await p.getByLabel('Pricing source').last().fill('Inspection quote Q-48');
     await p.getByLabel('Agent approval').fill('Workshop bench inspection: alignment within tolerance, report Q-48.');
     await p.getByRole('button', { name: 'Save estimate' }).click();
-    assert(await p.getByRole('button', { name: 'Submit to adjuster' }).isEnabled());
+    assert(await p.getByRole('button', { name: 'Submit for senior approval' }).isEnabled());
 
     await choose(p, 'CLM-2084');
     await p.getByRole('button', { name: 'Estimate', exact: true }).click();
-    await p.getByRole('button', { name: 'Submit to adjuster' }).click();
+    await p.getByRole('button', { name: 'Submit for senior approval' }).click();
     assert.equal(await p.getByRole('button', {name:'Authorize repairs'}).count(), 0);
     await switchView(p, 'Senior adjuster');
     await p.getByRole('button', { name: 'Return for changes' }).click();
     await p.getByRole('textbox').fill('Update bumper labor quote.');
-    await p.getByRole('button', { name: 'Save request' }).click();
+    await p.getByRole('button', { name: 'Return estimate' }).click();
     await switchView(p, 'Agent');
     await p.getByRole('button', {name:'Estimate',exact:true}).click();
     await p.getByRole('button', { name: 'Edit estimate' }).click();
     await p.getByLabel('Labor (QAR)').first().fill('1800');
     await p.getByLabel('Pricing source').first().fill('Workshop Q-49');
     await p.getByRole('button', { name: 'Save estimate' }).click();
-    await p.getByRole('button', { name: 'Resolve flagged items' }).click();
-    await p.getByRole('button', { name: 'Submit to adjuster' }).click();
+    await p.getByRole('button', { name: 'Mark corrections complete' }).click();
+    await p.getByRole('button', { name: 'Submit for senior approval' }).click();
     await switchView(p, 'Senior adjuster');
     await p.getByRole('button', { name: 'Authorize repairs' }).click();
-    assert(await p.getByRole('button', { name: 'Authorize estimate' }).isDisabled());
+    assert(await p.getByRole('button', { name: 'Confirm authorization' }).isDisabled());
     await p.getByLabel('Approved repair shop').selectOption('Harbor Auto Body');
     await p.getByLabel('Senior adjuster name').fill('Demo Adjuster');
-    await p.getByRole('button', { name: 'Authorize estimate' }).click();
+    await p.getByRole('button', { name: 'Confirm authorization' }).click();
     const downloaded = p.waitForEvent('download');
     await p.getByRole('button', { name: 'Download authorized report' }).click();
     const report = fs.readFileSync(await (await downloaded).path(), 'utf8');
@@ -155,7 +155,7 @@ async function untilStored(p, predicate) {
     // Reset only sample claims, then exercise the actual button and request payload.
     await p.getByRole('button', { name: 'All claims' }).click();
     await p.getByRole('button', { name: 'Reset sample claims' }).click();
-    await p.getByRole('button', { name: 'Reset samples', exact: true }).click();
+    await p.getByRole('button', { name: 'Reset sample claims', exact: true }).click();
     let verdict = 'sufficient', failDamage = true, calls = [];
     const finding = { component: 'Test bumper', code: 'bumper', damage: 'Visible crack', repair: 'Replace cover', severity: 'Moderate', accidentRelation: 'related', accidentReason: 'Matches the accident area.', operation: 'Replace', evidence: [{ item: 5, box: [100, 100, 700, 700], seconds: null }] };
     await p.route('**/api/analyze', async route => {
@@ -170,26 +170,26 @@ async function untilStored(p, predicate) {
     });
     await p.getByRole('button', { name: 'Review evidence', exact: true }).click();
     await p.getByRole('alert').filter({ hasText: 'Provider unavailable for test' }).waitFor();
-    await p.getByRole('dialog', { name: 'Claim workflow' }).getByRole('button', { name: 'Close', exact: true }).click();
+    await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Hide progress', exact: true }).click();
     assert.equal((await stored(p)).claims.find(c => c.id === 'CLM-2084').stage, 'intake');
     assert.equal((await stored(p)).claims.find(c => c.id === 'CLM-2084').lines.length, 0);
     assert.deepEqual(calls, ['quality', 'damage']);
     assert.equal((await stored(p)).claims.find(c => c.id === 'CLM-2084').findings.length, 0);
     failDamage = false;
     await p.getByRole('button', { name: 'Review evidence', exact: true }).click();
+    await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Review estimate', exact: true }).click();
     await p.getByText('Test bumper', { exact: true }).waitFor(); await ready(p);
-    await p.getByRole('dialog', { name: 'Claim workflow' }).getByRole('button', { name: 'Close', exact: true }).click();
     assert((await p.locator('.estimate-total').innerText()).includes('4,368'));
     verdict = 'missing'; await choose(p, 'CLM-2085');
     await p.getByRole('button', { name: 'Review evidence', exact: true }).click();
-    await p.getByRole('dialog', { name: 'Claim workflow' }).getByText('Need a clear detail.', { exact: true }).waitFor(); await ready(p);
-    await p.getByRole('dialog', { name: 'Claim workflow' }).getByRole('button', { name: 'Close', exact: true }).click();
+    await p.getByRole('region', { name: 'Claim review progress' }).getByText('Need a clear detail.', { exact: true }).waitFor(); await ready(p);
+    await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Hide progress', exact: true }).click();
     verdict = 'uncertain'; await choose(p, 'CLM-2086');
     await p.getByRole('button', { name: 'Review evidence', exact: true }).click();
     await ready(p);
-    await p.getByRole('dialog', { name: 'Claim workflow' }).getByRole('button', { name: 'Review evidence', exact: true }).click();
-    await p.getByRole('button', { name: 'Accept evidence' }).click();
-    await p.getByRole('dialog', { name: 'Claim workflow' }).getByRole('button', { name: 'Review estimate', exact: true }).click();
+    await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Check flagged evidence', exact: true }).click();
+    await p.getByRole('button', { name: 'Accept & assess damage' }).click();
+    await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Review estimate', exact: true }).click();
     await p.getByText('Test bumper', { exact: true }).waitFor(); await ready(p);
     assert.equal((await untilStored(p, d => d.claims.find(c => c.id === 'CLM-2086').stage === 'review')).claims.find(c => c.id === 'CLM-2086').override, true);
 
@@ -209,7 +209,7 @@ async function untilStored(p, predicate) {
     assert.equal(migrated.claims[0].lines[0].parts, 364);
     await migration.reload(); await ready(migration);
     assert.equal((await stored(migration)).claims[0].lines[0].parts, 364);
-    await migration.getByRole('button', { name: 'All claims' }).click(); await migration.getByRole('button', { name: 'Reset sample claims' }).click(); await migration.getByRole('button', { name: 'Reset samples', exact: true }).click();
+    await migration.getByRole('button', { name: 'All claims' }).click(); await migration.getByRole('button', { name: 'Reset sample claims' }).click(); await migration.getByRole('button', { name: 'Reset sample claims', exact: true }).click();
     assert((await untilStored(migration, d => d.active === 'CLM-2084')).claims.some(c => c.title === 'Keep my claim'));
 
     const m = await browser.newPage({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
