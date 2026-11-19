@@ -1,0 +1,49 @@
+{
+  "type": "Synthetic demo imagery; not real claim evidence",
+  "tool": "Higgsfield image generation",
+  "model": "gpt_image_2_6",
+  "generated": "2026-11-19",
+  "originals": [
+    {
+      "index": 0,
+      "job_id": "abe6d525-dc60-40ef-ad3a-324afc721df5",
+      "vehicle": "BMW 330i",
+      "prompt": "Create a photorealistic synthetic insurance training photo contact sheet. EXACTLY SIX square photographs in a precise edge-to-edge grid of 3 columns and 2 rows, equally sized, straight dividing boundaries, no margins, no titles, no labels, no text overlays. Each panel must be a separate photograph of THE EXACT SAME individual vehicle, same damage, same alloy wheels, same body color, same trim and windows, in the same plain outdoor inspection yard with soft overcast daylight. Entire car clearly in frame in each wide view with generous space around bumpers. Camera at standing height, natural smartphone inspection photography, deep focus, neutral color. Physical vehicle sides must remain consistent as camera moves. Panel order reading left to right: top row = front-left three-quarter wide, front-right three-quarter wide, rear-left three-quarter wide; bottom row = rear-right three-quarter wide, damage close-up, second damage close-up. All six show the same stationary car from different real camera angles. Generic blank registration plate. Subject: a silver 2021 BMW 330i G20 sedan with five-spoke silver wheels and dark interior. Moderate localized front-left impact: front-left bumper cover cracked and displaced, left front fender creased above the wheel arch, left headlamp outer lens cracked. Hood, wheels, glass, doors, rear and right side remain intact and straight. Panel 5 close-up shows front-left bumper crack and broken lamp. Panel 6 close-up shows left fender crease. Damage is localized cosmetic bolt-on components, not catastrophic."
+    },
+    {
+      "index": 1,
+      "job_id": "65ea7669-7167-4561-b87b-3c76b194cbf0",
+      "vehicle": "Toyota Camry",
+      "prompt": "Create a photorealistic synthetic insurance training photo contact sheet. EXACTLY SIX square photographs in a precise edge-to-edge grid of 3 columns and 2 rows, equally sized, straight dividing boundaries, no margins, no titles, no labels, no text overlays. Each panel must be a separate photograph of THE EXACT SAME individual vehicle, same damage, same alloy wheels, same body color, same trim and windows, in the same plain outdoor inspection yard with soft overcast daylight. Entire car clearly in frame in each wide view with generous space around bumpers. Camera at standing height, natural smartphone inspection photography, deep focus, neutral color. Physical vehicle sides must remain consistent as camera moves. Panel order reading left to right: top row = front-left three-quarter wide, front-right three-quarter wide, rear-left three-quarter wide; bottom row = rear-right three-quarter wide, damage close-up, second damage close-up. All six show the same stationary car from different real camera angles. Generic blank registration plate. Subject: a pearl white 2022 Toyota Camry sedan with silver multispoke wheels. Rear-right parking impact: right corner of rear bumper cover dented and scraped with a small loose gap near right tail lamp. Front and left side remain intact. Four wide views show whole car sharply. Panel 5 is a very out-of-focus attempt to photograph the rear-right tail lamp and bumper joint, unable to inspect the lens. Panel 6 is another badly motion-blurred close-up of the rear-right bumper attachment area. These two closeups deliberately fail to show fine details; exterior overview coverage is otherwise complete. No interior boot or under-bumper view."
+    },
+    {
+      "index": 2,
+      "job_id": "0136c7fd-f550-4f01-a441-6e5f35f292b8",
+      "vehicle": "Lexus ES 350",
+      "prompt": "Create a photorealistic synthetic insurance training photo contact sheet. EXACTLY SIX square photographs in a precise edge-to-edge grid of 3 columns and 2 rows, equally sized, straight dividing boundaries, no margins, no titles, no labels, no text overlays. Each panel must be a separate photograph of THE EXACT SAME individual vehicle, same damage, same alloy wheels, same body color, same trim and windows, in the same plain outdoor inspection yard with soft overcast daylight. Entire car clearly in frame in each wide view with generous space around bumpers. Camera at standing height, natural smartphone inspection photography, deep focus, neutral color. Physical vehicle sides must remain consistent as camera moves. Panel order reading left to right: top row = front-left three-quarter wide, front-right three-quarter wide, rear-left three-quarter wide; bottom row = rear-right three-quarter wide, damage close-up, second damage close-up. All six show the same stationary car from different real camera angles. Generic blank registration plate. Subject: a dark blue 2020 Lexus ES 350 sedan with silver multispoke wheels. The right front passenger door has a thin pale diagonal mark beneath the handle that could be a scratch or reflected light. Deep glossy door reflections and bright specular glare make the mark ambiguous. No obvious dent or deformation. All four wide views show the same clean intact car. Panel 5 is a close-up of the right-front passenger door with a strong diagonal reflected bright line and subtle thin mark. Panel 6 shows the same door under glare from a slightly different angle, still ambiguous between surface mark and reflection."
+    },
+    {
+      "index": 3,
+      "job_id": "17cb0c83-a2f6-442e-89a2-9606f89f517a",
+      "vehicle": "Nissan Patrol",
+      "prompt": "Create a photorealistic synthetic insurance training photo contact sheet. EXACTLY SIX square photographs in a precise edge-to-edge grid of 3 columns and 2 rows, equally sized, straight dividing boundaries, no margins, no titles, no labels, no text overlays. Each panel must be a separate photograph of THE EXACT SAME individual vehicle, same damage, same alloy wheels, same body color, same trim and windows, in the same plain outdoor inspection yard with soft overcast daylight. Entire car clearly in frame in each wide view with generous space around bumpers. Camera at standing height, natural smartphone inspection photography, deep focus, neutral color. Physical vehicle sides must remain consistent as camera moves. Panel order reading left to right: top row = front-left three-quarter wide, front-right three-quarter wide, rear-left three-quarter wide; bottom row = rear-right three-quarter wide, damage close-up, second damage close-up. All six show the same stationary car from different real camera angles. Generic blank registration plate. Subject: a dark gray 2021 Nissan Patrol Y62 SUV with roof rails and silver six-spoke wheels. Severe front-left collision: front bumper torn away on the left, hood buckled upward, left headlamp shattered, left front fender crumpled, front-left wheel appears pushed rearward and angled awkwardly. Right side and rear intact. Panel 5 close-up clearly shows crumpled left front impact area with torn bumper and buckled metal. Panel 6 close-up shows front-left wheel position relative to deformed wheel arch. No hidden chassis exposed or proven frame diagnosis; visible deformation warrants physical inspection."
+    }
+  ],
+  "corrections": [
+    {
+      "job_id": "a2efaea6-a40a-4304-9ed9-acb617fa192a",
+      "index": 4,
+      "prompt": "Create ONE standalone square photorealistic inspection photograph of the SAME pearl-white Toyota Camry in the reference contact sheet. New camera position: FRONT-LEFT three-quarter view, the car's nose points toward the LEFT edge of the picture, rear extends toward the RIGHT. The whole front bumper and the whole driver/left side visible, entire car framed with generous space. Match exact white paint, alloy wheels, body model, overcast gray yard, blank registration plate. Front and left panels intact. This is one photograph, not a contact sheet or collage."
+    },
+    {
+      "job_id": "20c2646e-49a6-4e2e-a4b0-b4733bcddae7",
+      "index": 5,
+      "prompt": "Create ONE standalone square photorealistic inspection photograph of the SAME pearl-white Toyota Camry in the reference contact sheet. Camera position: REAR-LEFT three-quarter view, rear bumper on RIGHT side of picture, nose extending toward LEFT. The full left side and rear of this same car are visible. Left rear bumper corner MUST be intact, smooth, unmarked white paint; collision damage is exclusively around the opposite right rear corner, mostly hidden in this view. Match model, wheels, windows, overcast inspection yard and blank plate. Entire vehicle framed with generous space. One photograph, not a collage."
+    },
+    {
+      "job_id": "3bd2c0ce-4c6d-40e9-b482-9333f56bcd29",
+      "index": 6,
+      "prompt": "Create ONE standalone square photorealistic inspection photograph of the SAME dark-blue Lexus ES 350 sedan in the reference contact sheet. New camera position: FRONT-LEFT three-quarter view, the car's nose points toward the LEFT edge of the picture, rear extends toward the RIGHT. The whole front bumper and whole driver/left side visible, entire car framed with generous space. Match exact dark blue paint, silver multispoke wheels, body model, overcast gray yard, blank registration plate. Visible front and left body panels intact. This is one photograph, not a contact sheet or collage."
+    }
+  ]
+}

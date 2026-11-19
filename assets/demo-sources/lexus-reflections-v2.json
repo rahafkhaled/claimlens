@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-11-19",
+  "tool": "Higgsfield generate_image",
+  "model": "gpt_image_2_6",
+  "job": "c0d99804-5127-48ba-b704-5625486ca9ea",
+  "referenceJob": "b418722e-9cf5-4395-9477-487237e5e99a",
+  "synthetic": true,
+  "purpose": "Ambiguous door mark versus reflected light; not evidence of a real accident.",
+  "initialPrompt": "Create a photorealistic SYNTHETIC insurance demo contact sheet: exactly six equally sized square photographs in a 3-column by 2-row grid, edge-to-edge, no gaps, no text, no labels. SAME dark navy metallic 2020 Lexus ES 350 sedan in all six views, parked outdoors on gray asphalt beside a gray metal fence and bare trees. Blank white number plates. Top row left: full car front-left corner. Top row middle: full car front-right corner showing passenger side. Top row right: full car rear-left corner. Bottom row left: full car rear-right corner. Bottom row middle: close-up of right front passenger door including handle, window sill and paint. Bottom row right: second close-up of that same right front door from a more oblique angle. The insurance question is whether a faint surface mark is damage or only a reflection: on the right front door there is a broad soft irregular grayish streak in the glossy reflections of the fence/trees. It overlaps reflected highlights, shifts in appearance between the two close-up angles, and has no crisp edges, no broken paint, no dent, no sharp straight scratch line, no exposed primer. These are sharp well-exposed photos, NOT blurred images. Strong natural specular reflections prevent confirming whether the faint broad mark is an actual scuff. All body panels otherwise intact. Keep the exact same car, wheels, color, door, lighting and location consistent across the six photographs. Realistic ordinary phone claim photos, no studio glamor, no annotations, no boxes. The final sheet must be a 3:2 rectangle with six square panels at exact thirds horizontally and halves vertically so it can be split into six files.",
+  "finalPrompt": "Edit this synthetic demo contact sheet. Preserve the SAME navy Lexus ES, fence, trees, same ambiguous broad soft reflection on the right front passenger door and its two closeups. Keep exact 3 columns x 2 rows, no margins and no text. CORRECT the wide-view directions: TOP-LEFT must show FRONT-LEFT corner with the FRONT bumper on the LEFT side of its tile and the DRIVER side extending RIGHT. TOP-MIDDLE stays FRONT-RIGHT with nose pointing RIGHT, passenger side extending LEFT. TOP-RIGHT must show REAR-LEFT corner, with REAR bumper on the RIGHT side of its tile and DRIVER side extending LEFT. BOTTOM-LEFT stays REAR-RIGHT with REAR bumper on LEFT and passenger side extending RIGHT. Thus both vehicle sides are shown, not duplicate views. BOTTOM-MIDDLE and BOTTOM-RIGHT remain the SAME RIGHT FRONT PASSENGER DOOR with a faint soft streak within reflections, ambiguous whether scuff or reflection, NO crisp scratch or exposed primer, panels not dented. Keep images sharp with broad reflections, consistent wheel design and body color. Output high resolution 3:2 sheet, each tile square, exact grid at one third and two thirds width and half height. No annotations or labels.",
+  "processing": "Six equal grid crops, 3 px borders removed; JPEG quality 92.",
+  "files": [
+    "public/evidence/lexus-reflections-v2/1.jpg",
+    "public/evidence/lexus-reflections-v2/2.jpg",
+    "public/evidence/lexus-reflections-v2/3.jpg",
+    "public/evidence/lexus-reflections-v2/4.jpg",
+    "public/evidence/lexus-reflections-v2/5.jpg",
+    "public/evidence/lexus-reflections-v2/6.jpg"
+  ]
+}

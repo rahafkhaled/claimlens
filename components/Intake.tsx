@@ -1,0 +1,260 @@
+"use client";
+import { useState, useRef } from "react";
+import { UploadCloud, X, ImagePlus, ArrowRight } from "lucide-react";
+import { type Claim, type Photo, addEvent } from "@/lib/claims";
+import { readPhotos } from "@/lib/photos";
+import { Modal } from "./ui";
+export function Intake({
+  existing,
+  close,
+  save,
+}: {
+  existing?: Claim;
+  close: () => void;
+  save: (c: Claim) => void;
+}) {
+  const [photos, setPhotos] = useState<Photo[]>([]),
+    [retained, setRetained] = useState(existing?.photos ?? []),
+    [filesBusy, setFilesBusy] = useState(false),
+    [error, setError] = useState(""),
+    [drag, setDrag] = useState(false);
+  const [title, setTitle] = useState(""),
+    [vehicle, setVehicle] = useState(""),
+    [details, setDetails] = useState("");
+  const pendingRequests = existing?.evidenceRequests?.filter(request => request.status === "awaiting") ?? [];
+  const [responseIds, setResponseIds] = useState(() => pendingRequests.map(request => request.id));
+  const input = useRef<HTMLInputElement>(null);
+  async function add(files: FileList) {
+    setError("");
+    setFilesBusy(true);
+    try {
+      const next = await readPhotos(files, retained.length + photos.length);
+      setPhotos((p) => [...p, ...next]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not read the image.");
+    } finally {
+      setFilesBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  }
+  return (
+    <Modal
+      title={existing ? "Record received evidence" : "Open claim"}
+      close={close}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (
+            !photos.length &&
+            !(existing && retained.length && details.trim())
+          ) {
+            setError(
+              existing
+                ? "Add evidence or enter new inspection details."
+                : "Add at least one photo or video.",
+            );
+            return;
+          }
+          if (
+            [...retained, ...photos].reduce((n, p) => n + p.src.length, 0) >
+            18_000_000
+          ) {
+            setError(
+              "The combined evidence is too large. Use a shorter clip or fewer files.",
+            );
+            return;
+          }
+          const c: Claim = existing
+            ? {
+                ...existing,
+                photos: [...retained, ...photos],
+                scopeNeedsReview: true,
+                details: [existing.details, details]
+                  .filter(Boolean)
+                  .join("\n")
+                  .slice(-3000),
+              }
+            : {
+                id:
+                  "CLM-" +
+                  crypto
+                    .getRandomValues(new Uint32Array(1))[0]
+                    .toString(16)
+                    .padStart(8, "0")
+                    .toUpperCase(),
+                title: title.trim(),
+                vehicle: vehicle.trim(),
+                details: details.trim(),
+                created: new Date().toISOString(),
+                sample: false,
+                accidentDescription: details.trim(),
+                currency: "QAR",
+                photos,
+                stage: "intake",
+                request: "",
+                override: false,
+                quality: "",
+                gaps: [],
+                decision: null,
+                decisionSource: undefined,
+                findings: [],
+                lines: [],
+                log: [],
+              };
+          if (!c.title || !c.vehicle) {
+            setError("Enter the incident title and vehicle.");
+            return;
+          }
+          const evidenceRequests = c.evidenceRequests?.map(request => request.status === "awaiting" && responseIds.includes(request.id) ? { ...request, status: "received" as const, receivedAt: new Date().toISOString() } : request);
+          const outstanding = evidenceRequests?.filter(request => request.status === "awaiting") ?? [];
+          save(
+            addEvent(
+              c,
+              existing ? "Additional evidence received" : "Claim received",
+              photos.length
+                ? photos.length + " evidence file(s) added."
+                : "Inspection details updated.",
+              {
+                stage: outstanding.length ? "missing" : "intake",
+                evidenceRequests,
+                scopeNeedsReview: true,
+                excludedFindings: [],
+                quality: "",
+                gaps: [],
+                decision: null,
+                decisionSource: undefined,
+                findings: [],
+                lines: [],
+                request: outstanding.map(request => [request.message, ...request.pins.map(pin => pin.comment)].filter(Boolean).join("\n")).join("\n"),
+                override: false,
+              },
+            ),
+          );
+        }}
+      >
+        {!existing && (
+          <>
+            <label>
+              Incident title
+              <input
+                autoFocus
+                required
+                maxLength={100}
+                placeholder="e.g. Front-end collision"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <label>
+              Vehicle
+              <input
+                required
+                maxLength={140}
+                placeholder="Year, make and model"
+                value={vehicle}
+                onChange={(e) => setVehicle(e.target.value)}
+              />
+            </label>
+          </>
+        )}
+        {existing?.request && <p className="notice">{existing.request}</p>}
+        {pendingRequests.length > 0 && <fieldset className="response-requests"><legend>This response addresses</legend>
+          {pendingRequests.map(request => <label key={request.id}><input type="checkbox" checked={responseIds.includes(request.id)} onChange={event => setResponseIds(old => event.target.checked ? [...old, request.id] : old.filter(id => id !== request.id))} /><span>{request.recipient} · {request.message || request.pins[0]?.comment}</span></label>)}
+        </fieldset>}
+        <label>
+          {existing ? "Response / inspection notes" : "Accident description"}
+          <textarea
+            required={!existing}
+            minLength={existing ? undefined : 10}
+            maxLength={1800}
+            rows={3}
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            placeholder="Describe what happened, the impact area and the damage being claimed."
+          />
+        </label>
+        <div className="field-label">Evidence</div>
+        {existing && (
+          <div className="retained">
+            {retained.map((p, i) => (
+              <div key={i}>
+                <img src={p.poster ?? p.src} alt={p.name} />
+                <button
+                  type="button"
+                  aria-label={"Remove existing " + p.name}
+                  onClick={() =>
+                    setRetained((old) => old.filter((_, n) => n !== i))
+                  }
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          disabled={filesBusy}
+          type="button"
+          className={"upload " + (drag ? "drag" : "")}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDrag(true);
+          }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDrag(false);
+            if (!filesBusy) void add(e.dataTransfer.files);
+          }}
+          onClick={() => input.current?.click()}
+        >
+          <UploadCloud size={24} />
+          <strong>
+            {filesBusy ? "Reading files…" : "Choose photos or video"}
+          </strong>
+          <small>Up to 8 photos or clips · 12 MB per file</small>
+        </button>
+        <input
+          ref={input}
+          type="file"
+          hidden
+          multiple
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+          onChange={(e) => {
+            if (e.target.files) void add(e.target.files);
+          }}
+        />
+        <div className="uploaded">
+          {photos.map((p, i) => (
+            <div key={i}>
+              <ImagePlus size={14} />
+              <span>{p.name}</span>
+              <button
+                type="button"
+                aria-label={"Remove " + p.name}
+                onClick={() => setPhotos(photos.filter((_, n) => i !== n))}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="modal-actions">
+          <button type="button" className="secondary" onClick={close}>
+            Cancel
+          </button>
+          <button className="primary" disabled={filesBusy}>
+            {existing ? "Record response" : "Open claim"}
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

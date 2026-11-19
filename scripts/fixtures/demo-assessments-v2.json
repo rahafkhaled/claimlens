@@ -1,0 +1,480 @@
+[
+  {
+    "id": "CLM-2084",
+    "title": "Front-end collision",
+    "vehicle": "2021 BMW 330i",
+    "demoScenario": "Standard repair",
+    "details": "Low-speed impact to the front-left corner.",
+    "photos": [
+      {
+        "name": "Front-left",
+        "src": "/evidence/bmw/1.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Front-right",
+        "src": "/evidence/bmw/2.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-left",
+        "src": "/evidence/bmw/3.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-right",
+        "src": "/evidence/bmw/4.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Bumper & headlamp",
+        "src": "/evidence/bmw/5.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Fender close-up",
+        "src": "/evidence/bmw/6.jpg",
+        "kind": "photo",
+        "synthetic": true
+      }
+    ],
+    "stage": "review",
+    "quality": "Clear exterior views. Three visible repair items.",
+    "gaps": [],
+    "decision": {
+      "choice": "sufficient",
+      "confidence": 0.96
+    },
+    "findings": [
+      {
+        "component": "Front bumper",
+        "code": "bumper",
+        "operation": "Replace",
+        "damage": "Cracked cover at the left corner",
+        "repair": "Replace bumper cover",
+        "severity": "Moderate",
+        "evidence": [
+          {
+            "item": 1,
+            "box": [
+              575,
+              65,
+              790,
+              545
+            ]
+          },
+          {
+            "item": 5,
+            "box": [
+              470,
+              30,
+              970,
+              810
+            ]
+          }
+        ]
+      },
+      {
+        "component": "Left fender",
+        "code": "fender",
+        "operation": "Replace",
+        "damage": "Crease above the wheel arch",
+        "repair": "Replace and refinish fender",
+        "severity": "Moderate",
+        "evidence": [
+          {
+            "item": 1,
+            "box": [
+              500,
+              530,
+              640,
+              680
+            ]
+          },
+          {
+            "item": 6,
+            "box": [
+              140,
+              135,
+              625,
+              970
+            ]
+          }
+        ]
+      },
+      {
+        "component": "Left headlamp",
+        "code": "headlamp",
+        "operation": "Replace",
+        "damage": "Cracked outer lens",
+        "repair": "Replace headlamp assembly",
+        "severity": "Moderate",
+        "evidence": [
+          {
+            "item": 1,
+            "box": [
+              535,
+              340,
+              637,
+              550
+            ]
+          },
+          {
+            "item": 5,
+            "box": [
+              145,
+              20,
+              495,
+              885
+            ]
+          }
+        ]
+      }
+    ],
+    "lines": [
+      {
+        "component": "Front bumper",
+        "repair": "Replace bumper cover",
+        "parts": 2620.8,
+        "labor": 1747.2,
+        "source": "Demo price book · QAR",
+        "needsQuote": false
+      },
+      {
+        "component": "Left fender",
+        "repair": "Replace and refinish fender",
+        "parts": 1619.8,
+        "labor": 1310.4,
+        "source": "Demo price book · QAR",
+        "needsQuote": false
+      },
+      {
+        "component": "Left headlamp",
+        "repair": "Replace headlamp assembly",
+        "parts": 4440.8,
+        "labor": 873.6,
+        "source": "Demo price book · QAR",
+        "needsQuote": false
+      }
+    ],
+    "created": "2026-11-18T09:40:00Z",
+    "sample": true,
+    "currency": "QAR",
+    "demoVersion": 2,
+    "decisionSource": "demo",
+    "scopeReviewed": true,
+    "accidentDescription": "The driver reports a low-speed collision with another vehicle at the front-left corner. The claimed damage is to the front bumper, left headlamp and left fender; assess only damage consistent with that contact.",
+    "request": "",
+    "override": false,
+    "log": [
+      {
+        "title": "Demo assessment loaded",
+        "detail": "Standard repair. Preset findings for synthetic photos; Review evidence runs a live assessment.",
+        "at": "2026-11-18T09:48:00Z"
+      }
+    ]
+  },
+  {
+    "id": "CLM-2085",
+    "title": "Rear parking impact",
+    "vehicle": "2022 Toyota Camry",
+    "demoScenario": "Missing evidence",
+    "details": "Rear-right corner struck while parked. Detail photos are blurred.",
+    "photos": [
+      {
+        "name": "Front-left",
+        "src": "/evidence/camry/1.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Front-right",
+        "src": "/evidence/camry/2.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-left",
+        "src": "/evidence/camry/3.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-right",
+        "src": "/evidence/camry/4.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Tail lamp · blurred",
+        "src": "/evidence/camry/5.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Bumper mounting · blurred",
+        "src": "/evidence/camry/6.jpg",
+        "kind": "photo",
+        "synthetic": true
+      }
+    ],
+    "stage": "missing",
+    "quality": "Full exterior coverage; rear detail photos are too blurred to assess.",
+    "gaps": [
+      "Add sharp close-ups of the right tail lamp and bumper mounting gap."
+    ],
+    "decision": {
+      "choice": "missing",
+      "confidence": 0.94
+    },
+    "findings": [],
+    "lines": [],
+    "created": "2026-11-18T09:40:00Z",
+    "sample": true,
+    "currency": "QAR",
+    "demoVersion": 2,
+    "decisionSource": "demo",
+    "scopeReviewed": true,
+    "accidentDescription": "The policyholder reports the rear-right corner being struck while parked. The claim concerns the right tail lamp, rear bumper and mounting area; front and side marks are outside this reported accident.",
+    "request": "Add sharp close-ups of the right tail lamp and bumper mounting gap.",
+    "override": false,
+    "log": [
+      {
+        "title": "Demo assessment loaded",
+        "detail": "Missing evidence. Preset findings for synthetic photos; Review evidence runs a live assessment.",
+        "at": "2026-11-18T09:48:00Z"
+      }
+    ]
+  },
+  {
+    "id": "CLM-2086",
+    "title": "Passenger-door mark",
+    "vehicle": "2020 Lexus ES 350",
+    "demoScenario": "Agent review",
+    "details": "A mark was reported on the right front door. Reflections obscure its extent.",
+    "photos": [
+      {
+        "name": "Front-left",
+        "src": "/evidence/lexus/1.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Front-right",
+        "src": "/evidence/lexus/2.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-left",
+        "src": "/evidence/lexus/3.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-right",
+        "src": "/evidence/lexus/4.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Door mark",
+        "src": "/evidence/lexus/5.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Door · alternate angle",
+        "src": "/evidence/lexus/6.jpg",
+        "kind": "photo",
+        "synthetic": true
+      }
+    ],
+    "stage": "uncertain",
+    "quality": "Glare makes a surface mark difficult to distinguish from a reflection.",
+    "gaps": [
+      "Check the door mark; request a glare-free close-up if needed."
+    ],
+    "decision": {
+      "choice": "uncertain",
+      "confidence": 0.58
+    },
+    "findings": [],
+    "lines": [],
+    "created": "2026-11-18T09:40:00Z",
+    "sample": true,
+    "currency": "QAR",
+    "demoVersion": 2,
+    "decisionSource": "demo",
+    "scopeReviewed": true,
+    "accidentDescription": "The policyholder reports another vehicle scraping the right front door while parking. Only damage consistent with this door contact is claimed; the visible mark may be a reflection and needs confirmation.",
+    "request": "Check the door mark; request a glare-free close-up if needed.",
+    "override": false,
+    "log": [
+      {
+        "title": "Demo assessment loaded",
+        "detail": "Agent review. Preset findings for synthetic photos; Review evidence runs a live assessment.",
+        "at": "2026-11-18T09:48:00Z"
+      }
+    ]
+  },
+  {
+    "id": "CLM-2087",
+    "title": "Front-left heavy impact",
+    "vehicle": "2021 Nissan Patrol",
+    "demoScenario": "Inspection hold",
+    "details": "Heavy front-left impact with a displaced wheel. Structural damage is unconfirmed.",
+    "photos": [
+      {
+        "name": "Front-left",
+        "src": "/evidence/patrol/1.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Front-right",
+        "src": "/evidence/patrol/2.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-left",
+        "src": "/evidence/patrol/3.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Rear-right",
+        "src": "/evidence/patrol/4.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Front impact",
+        "src": "/evidence/patrol/5.jpg",
+        "kind": "photo",
+        "synthetic": true
+      },
+      {
+        "name": "Wheel & arch",
+        "src": "/evidence/patrol/6.jpg",
+        "kind": "photo",
+        "synthetic": true
+      }
+    ],
+    "stage": "review",
+    "quality": "Visible deformation requires a physical alignment inspection.",
+    "gaps": [],
+    "decision": {
+      "choice": "sufficient",
+      "confidence": 0.91
+    },
+    "findings": [
+      {
+        "component": "Front bumper",
+        "code": "bumper",
+        "operation": "Replace",
+        "damage": "Left corner torn away",
+        "repair": "Replace bumper assembly",
+        "severity": "High",
+        "evidence": [
+          {
+            "item": 5,
+            "box": [
+              380,
+              20,
+              970,
+              970
+            ]
+          }
+        ]
+      },
+      {
+        "component": "Hood",
+        "code": "hood",
+        "operation": "Replace",
+        "damage": "Panel buckled at the impact area",
+        "repair": "Replace and refinish hood",
+        "severity": "High",
+        "evidence": [
+          {
+            "item": 1,
+            "box": [
+              360,
+              70,
+              515,
+              560
+            ]
+          }
+        ]
+      },
+      {
+        "component": "Front-left alignment",
+        "code": "other",
+        "operation": "Inspect",
+        "damage": "Wheel displaced within the damaged arch",
+        "repair": "Inspect suspension and structural alignment",
+        "severity": "High",
+        "evidence": [
+          {
+            "item": 6,
+            "box": [
+              80,
+              50,
+              960,
+              950
+            ]
+          }
+        ]
+      }
+    ],
+    "lines": [
+      {
+        "component": "Front bumper",
+        "repair": "Replace bumper assembly",
+        "parts": 2620.8,
+        "labor": 1747.2,
+        "source": "Demo price book · QAR",
+        "needsQuote": false
+      },
+      {
+        "component": "Hood",
+        "repair": "Replace and refinish hood",
+        "parts": 3239.6,
+        "labor": 1528.8,
+        "source": "Demo price book · QAR",
+        "needsQuote": false
+      },
+      {
+        "component": "Front-left alignment",
+        "repair": "Inspect suspension and structural alignment",
+        "parts": 0,
+        "labor": 218.4,
+        "catalogueId": "other:Inspect",
+        "needsQuote": false,
+        "source": "Added demo allowance · 2026-11-complete · 1 h × QAR 218.40"
+      }
+    ],
+    "created": "2026-11-18T09:40:00Z",
+    "sample": true,
+    "currency": "QAR",
+    "demoVersion": 2,
+    "decisionSource": "demo",
+    "scopeReviewed": true,
+    "accidentDescription": "The driver reports a heavy impact at the front-left corner. The claim concerns the front bumper, hood and left wheel/suspension area. Assess accident-related deformation and flag any uncertain structural involvement for agent approval.",
+    "request": "",
+    "override": false,
+    "log": [
+      {
+        "title": "Demo assessment loaded",
+        "detail": "Inspection hold. Preset findings for synthetic photos; Review evidence runs a live assessment.",
+        "at": "2026-11-18T09:48:00Z"
+      }
+    ]
+  }
+]

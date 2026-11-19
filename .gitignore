@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment variables and credentials
+.env*
+!.env.example
+*.pem
+*.key
+
+# Hosting configuration
+.vercel/
+
+# Logs and local files
+*.log
+.DS_Store
+Thumbs.db
