@@ -9,6 +9,13 @@ async function stored(page) { return page.evaluate(() => new Promise(resolve => 
  const errors = []; page.on('pageerror', e => errors.push(e.message));
  await page.goto(url); await page.getByRole('button', { name: 'Demo walkthrough', exact: true }).waitFor();
  await page.waitForFunction(() => document.querySelectorAll('.claims-table tbody tr').length === 4);
+ const badges = page.locator('.claims-table .claim-status');
+ const fills = await badges.evaluateAll(nodes => nodes.map(node => getComputedStyle(node).backgroundColor));
+ assert.equal(new Set(fills).size,4,'Starting scenarios have distinct status colors');
+ assert.equal(await page.locator('tr[data-priority="true"] .claim-title').innerText(),'2021 BMW 330i');
+ await page.getByRole('button',{name:'Demo walkthrough',exact:true}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'Open BMW claim'}).waitFor();
+ await page.keyboard.press('Escape');
  await page.screenshot({path:'/tmp/claimlens-dashboard.png',fullPage:true});
  await page.getByLabel('Search claims').fill('Camry'); assert.equal(await page.locator('.claims-table tbody tr').count(),1);
  await page.getByLabel('Search claims').fill('not a claim'); await page.getByText('No matching claims',{exact:true}).waitFor();

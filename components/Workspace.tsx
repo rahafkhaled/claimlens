@@ -27,6 +27,7 @@ import { advanceReview, readReviewResponse, type ReviewEvent, type ReviewRun } f
 import { locatePins, type LocatedPin } from "@/lib/photo-pins";
 import { asDataUrl } from "@/lib/photos";
 import { Dashboard } from "./Dashboard";
+import { ClaimStatusBadge } from "./ClaimStatusBadge";
 import { claimStatus, decisionLabel, estimateBlocker } from "@/lib/claim-status";
 import { Modal } from "./ui";
 import { AccidentDescription } from "./AccidentDescription";
@@ -410,10 +411,7 @@ export default function Workspace({ example }: { example?: Claim }) {
                 <span>·</span> {displayDate(c.created)}
               </p>
             </div>
-            <div className="case-state">
-              <span className="status-dot" />
-              {busy ? "Assessing evidence" : claimStatus(c).label}
-            </div>
+            <ClaimStatusBadge status={claimStatus(c)} assessing={!!busy} workspace />
           </div>
           {role === "agent" && c.stage === "senior" && <SubmissionStatus c={c} save={save} />}
           <AccidentDescription key={c.id + "-accident"} claim={c} save={save} readOnly={role === "senior" || !!busy || c.stage === "authorized" || c.stage === "senior"} />
