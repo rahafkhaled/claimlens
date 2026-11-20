@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, MapPin, Maximize2, Plus, Play, ScanLine } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Maximize2, Play, ScanLine } from "lucide-react";
 import { type Claim, type Photo, type EvidencePin, needsScopeReview, money, addEvent } from "@/lib/claims";
 import { pinLabel } from "@/lib/photo-pins";
 import { Modal } from "./ui";
@@ -183,8 +183,6 @@ export function FindingRecord({
 }
 export function Evidence({
   claim,
-  onAdd,
-  onRespond,
   saveAnnotation,
   onReview,
   onRequest,
@@ -193,11 +191,10 @@ export function Evidence({
   readOnly = false,
   primaryAnalysis = true,
   outcomeVisible = false,
-}: { claim: Claim; saveAnnotation?: (next: Claim, previous: Claim) => Promise<boolean>; onRespond?: (id: string) => void; locked?: boolean; reviewing?: boolean; primaryAnalysis?: boolean; outcomeVisible?: boolean } & ({
-  readOnly: true; onAdd?: never; onReview?: never; onRequest?: never;
+}: { claim: Claim; saveAnnotation?: (next: Claim, previous: Claim) => Promise<boolean>; locked?: boolean; reviewing?: boolean; primaryAnalysis?: boolean; outcomeVisible?: boolean } & ({
+  readOnly: true; onReview?: never; onRequest?: never;
 } | {
   readOnly?: boolean;
-  onAdd: () => void;
   onReview: () => void;
   onRequest: (index: number) => void;
 })) {
@@ -303,25 +300,14 @@ export function Evidence({
             {annotations[n].length > 0 && <span className="thumb-pin-count" title={`${annotations[n].length} photo pins`}>{annotations[n].length}</span>}
           </button>
         ))}
-        {!readOnly && claim.stage !== "authorized" && (
-          <button
-            disabled={locked}
-            onClick={onAdd}
-            className="add-photo"
-            aria-label="Add policyholder response"
-            title="Add policyholder response"
-          >
-            <Plus size={18} />
-          </button>
-        )}
       </div>
-      {!reviewing && !readOnly && claim.stage !== "authorized" && <div className="evidence-actions button-row">
+      {!reviewing && !readOnly && !claim.evidenceRequests?.some(r => r.status === "awaiting") && claim.stage !== "authorized" && <div className="evidence-actions button-row">
         <button className="text-button" disabled={locked} onClick={() => onRequest?.(i)}>Request additional evidence</button>
         {(!outcomeVisible || (!primaryAnalysis && !claim.evidenceUpdated)) && <button className="text-button" disabled={locked || claim.evidenceRequests?.some(r => r.status === "awaiting")} onClick={onReview}>
           <ScanLine size={14} />{claim.decision || claim.lines.length ? "Assess evidence again" : "Assess evidence"}
         </button>}
       </div>}
-      <EvidenceRequests claim={claim} onRespond={readOnly || locked ? undefined : onRespond} />
+      <EvidenceRequests claim={claim} />
       {expanded && (
         <Modal title={file.name} wide close={() => setExpanded(false)}>
           <PhotoViewer key={target?.click} file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} initialPin={savedPin ?? (target && "finding-" + target.finding)} editPin={editable ? edit : undefined} />

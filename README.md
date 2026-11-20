@@ -39,9 +39,9 @@ The review animation follows actual streamed stages. The ribbon above the photos
 
 Agents use **Request additional evidence** to select existing photos, place numbered pins, and add a comment to each pin. Request notes can also describe a missing view or a video timestamp without a pin. Evidence requests are addressed to the policyholder; save the request and the claim shows **Awaiting policyholder response**. Requests and comments persist with the claim, appear in its history and report, and are read-only in the senior view. Photo coordinates remain aligned as the view resizes; keyboard users can add a centered pin and reposition it with arrow keys.
 
-Delivery is simulated: no email or message is sent. **Add policyholder response** is a separate action for logging returned photos, clips or inspection notes. The response form preselects the open request and shows its notes and photo comments. When several requests are open, select which ones the response addresses; unresolved requests continue to hold review. After saving, the claim shows **Updated evidence ready for assessment** and the agent explicitly selects **Assess updated evidence**. The previous assessment stays available as outdated, and approval remains blocked until reassessment succeeds. A failed assessment preserves the previous result. Receiving files does not automatically assess them. If an original photo is later removed, its request comment and filename remain in the record and the viewer marks the source unavailable.
+Delivery is simulated. The agent can open **View request** to read the sent message and its photo comments. The demo ends this branch at **Awaiting policyholder response**.
 
-Run `node scripts/evidence-request-check.cjs` for request routing, pins, comments, policyholder-only requests, persistence, mobile alignment, senior read-only access and response intake, using mocked provider calls.
+Run `node scripts/evidence-request-check.cjs` for request routing, pins, comments, policyholder-only requests, persistence, mobile alignment, senior read-only access and the waiting state, using mocked provider calls.
 
 ## Pricing and storage
 
@@ -67,4 +67,4 @@ Provider references: [TypeSafe decision API](https://api.typesafe.ai/docs), [Gem
 
 Tailwind CSS v4 and shadcn/ui Button, Input, Badge, and Card components are configured in `components.json`; shared colors also style the existing workspace. Components are owned locally under `components/ui/`.
 
-Run `node scripts/dashboard-response-check.cjs` for dashboard search, request-linked responses, preserved prior decisions, failed reassessment recovery, repeated evidence gaps, persistence, and mobile overflow. Like the other browser checks, it accepts `CHROME_PATH` and `CLAIMLENS_URL`. If Turbopack cannot start its CSS worker in a restricted environment, use `npm run build -- --webpack`.
+Run `node scripts/dashboard-response-check.cjs` for dashboard search, sent evidence requests, read-only waiting state, persistence, and mobile overflow. Like the other browser checks, it accepts `CHROME_PATH` and `CLAIMLENS_URL`. If Turbopack cannot start its CSS worker in a restricted environment, use `npm run build -- --webpack`.

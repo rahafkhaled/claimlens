@@ -130,15 +130,11 @@ async function untilStored(p, predicate) {
     await p.getByText('Check panel clearance.', {exact:true}).waitFor();
 
     await choose(p, 'CLM-2085');
-    await p.getByRole('button', {name:'View as policyholder'}).click();
-    const portal = p.getByRole('dialog', {name:'Your evidence request'});
-    await portal.getByText('Please send a close-up of the right tail lamp and rear bumper mounting gap.', {exact:true}).waitFor();
-    await portal.locator('input[type=file]').setInputFiles('public/evidence/camry/5.jpg');
-    await portal.getByRole('button', {name:'Send evidence to agent'}).click();
-    await p.getByRole('heading', {name:'Updated evidence ready for assessment'}).waitFor();
-    const response = (await stored(p)).claims.find(c => c.id === 'CLM-2085');
-    assert.equal(response.photos.length, 7);
-    assert.equal(response.evidenceRequests.at(-1).status, 'received');
+    await p.getByRole('heading', {name:'Awaiting policyholder response'}).waitFor();
+    await p.getByRole('button', {name:'View request', exact:true}).click();
+    await p.getByRole('dialog').getByText('Please send a close-up of the right tail lamp and rear bumper mounting gap.', {exact:true}).first().waitFor();
+    assert.equal(await p.getByRole('button', {name:/Add policyholder response|View as policyholder|Send evidence to agent/}).count(), 0);
+    await p.keyboard.press('Escape');
     await choose(p, 'CLM-2086');
     await p.getByRole('button', { name: 'Check flagged evidence', exact: true }).click();
     assert(await p.getByRole('button', { name: 'Accept evidence & assess damage' }).isEnabled());

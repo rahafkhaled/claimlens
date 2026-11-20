@@ -1,6 +1,5 @@
 const { chromium } = require('playwright-core');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const url = process.env.CLAIMLENS_URL || 'http://127.0.0.1:3184';
 async function ready(page) { await page.locator('.claim-title').first().click(); await page.waitForFunction(() => !document.querySelector('.view-trigger')?.disabled); }
 async function stored(page) {
@@ -77,14 +76,14 @@ async function until(page, predicate) {
     assert.equal(record.pins[0].photoName, firstName); assert.equal(record.pins[1].x, 51);
     assert.equal(claim.log[0].title, 'Evidence requested'); assert.equal(apiCalls, 1);
     assert.equal((await page.locator('.case-state').innerText()).trim(), 'Awaiting policyholder response');
-    assert(await page.locator('.evidence-actions').getByRole('button', { name: /^Assess (updated evidence|evidence|evidence again)$/ }).isDisabled());
+    assert.equal(await page.locator('.evidence-actions button').count(), 0);
     await page.reload(); await ready(page);
     const gallery = page.locator('.evidence-panel');
     await gallery.getByRole('button', { name: 'Photo pin 1: Evidence request' }).click();
     assert.equal(await gallery.locator('.gallery-pin-note p').innerText(), record.pins[0].comment);
     await gallery.locator('.filmstrip .thumb').nth(4).click();
     assert.equal(await gallery.locator('.gallery-pin-note p').innerText(), record.pins[1].comment);
-    assert(await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Add policyholder response', exact: true }).isVisible());
+    assert(await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'View request', exact: true }).isVisible());
     await page.getByRole('button', { name: 'Repair estimate', exact: true }).click();
     await page.getByRole('heading', { name: 'Awaiting policyholder response', exact: true }).waitFor();
     await page.getByRole('button', { name: 'View analysis details', exact: true }).click();
@@ -116,53 +115,8 @@ async function until(page, predicate) {
     await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.getByRole('button', { name: /^Switch view:/ }).click();
     await page.getByRole('menuitemradio', { name: 'Agent', exact: true }).click();
-    // Cancel a draft without changing the saved request.
-    await page.locator('.evidence-actions').getByRole('button', { name: 'Request additional evidence', exact: true }).click();
-    dialog = page.getByRole('dialog', { name: 'Request additional evidence', exact: true });
-    await dialog.getByLabel('Request notes').fill('Discard me');
-    await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Discard this draft request?' }).getByRole('button', { name: 'Discard draft', exact: true }).click();
-    assert.equal((await stored(page)).claims[0].evidenceRequests.length, 1);
-    // Received evidence is an explicit, separate action, never auto-reviewed.
-    await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Add policyholder response', exact: true }).click();
-    dialog = page.getByRole('dialog', { name: 'Respond to evidence request', exact: true });
-    assert.equal(await dialog.locator('input[type=checkbox]:checked').count(), 1);
-    await dialog.locator('input[type=checkbox]').first().check();
-    await dialog.getByLabel('Response / inspection notes').fill('Policyholder supplied the requested close-up.');
-    await dialog.locator('input[type=file]').setInputFiles({ name: 'bumper-response.jpg', mimeType: 'image/jpeg', buffer: fs.readFileSync('public/evidence/bmw/5.jpg') });
-    await dialog.getByText('bumper-response.jpg', { exact: true }).waitFor();
-    await dialog.getByRole('button', { name: 'Save response', exact: true }).click();
-    data = await until(page, data => data.claims[0].evidenceUpdated === true);
-    assert.equal(data.claims[0].photos.length, 7); assert.equal(data.claims[0].evidenceRequests[0].status, 'received');
-    assert.equal(data.claims[0].evidenceRequests[0].pins[0].photoId, record.pins[0].photoId);
-    assert.equal(apiCalls, 1); assert(await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Assess updated evidence', exact: true }).isEnabled());
-    // Two requests can receive separate responses; one response must not clear both.
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    for (const text of ['Confirm the bumper mount.', 'Confirm the lamp bracket.']) {
-      await page.locator('.evidence-actions').getByRole('button', { name: 'Request additional evidence', exact: true }).click();
-      dialog = page.getByRole('dialog', { name: 'Request additional evidence', exact: true });
-      await dialog.getByLabel('Request notes').fill(text);
-      await dialog.getByRole('button', { name: 'Send evidence request', exact: true }).click();
-    }
-    await page.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Add policyholder response', exact: true }).click();
-    dialog = page.getByRole('dialog', { name: 'Respond to evidence request', exact: true });
-    assert.equal(await dialog.locator('input[type=checkbox]:checked').count(), 0);
-    await dialog.getByRole('button', {name:'Close dialog'}).click();
-    await page.locator('.request-record').filter({hasText:'Confirm the bumper mount.'}).click();
-    await page.getByRole('dialog').getByRole('button',{name:'Add policyholder response'}).click();
-    assert.equal(await dialog.locator('input[type=checkbox]:checked').count(), 1);
-    assert(await dialog.getByLabel(/Confirm the bumper mount/).isChecked());
-    await dialog.getByLabel('Response / inspection notes').fill('Bumper mount inspected by the repair shop.');
-    await dialog.getByRole('button', { name: 'Save response', exact: true }).click();
-    data = await until(page, data => data.claims[0].evidenceRequests?.[1].status === 'received');
-    assert.equal(data.claims[0].evidenceRequests[2].status, 'awaiting');
-    assert.equal(data.claims[0].stage, 'missing');
-    assert.equal(await page.getByRole('button', { name: 'Assess updated evidence', exact: true }).count(), 0);
-    await page.getByRole('button', { name: 'Edit accident description', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Accident description', exact: true }).fill('Front-left collision with a parked car, damaging bumper and lamp.');
-    await page.getByRole('button', { name: 'Save description', exact: true }).click();
-    assert.equal((await page.locator('.case-state').innerText()).trim(), 'Awaiting policyholder response');
+    assert.equal(await page.getByRole('button', { name: /Add policyholder response|View as policyholder/ }).count(), 0);
     assert.deepEqual(errors, []);
-    console.log('PASS: missing-route request composer, multi-photo pins/comments, keyboard movement, empty-pin validation, recipient, persistence, responsive pin alignment, senior read-only requests, draft cancellation and separate response upload without automatic review.');
+    console.log('PASS: missing-route request composer, multi-photo pins/comments, keyboard movement, empty-pin validation, recipient, persistence, responsive pin alignment, senior read-only requests, terminal waiting state.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

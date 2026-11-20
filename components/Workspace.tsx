@@ -35,11 +35,10 @@ import { SeniorDesk } from "./SeniorDesk";
 import { AnalysisPanel, type AnalysisAction } from "./AnalysisPanel";
 import { Evidence, FindingRecord, PhotoViewer, photoPins } from "./Evidence";
 import { EvidenceRequestEditor } from "./EvidenceRequest";
-import { Intake } from "./Intake";
 import { Activity, Review, SubmissionStatus } from "./Review";
 
 type Tab = "evidence" | "estimate" | "activity";
-type Overlay = "policyholder" | "walkthrough" | "delete" | "add" | "more" | "changes" | "reset" | "reanalyze" | "flags" | null;
+type Overlay = "walkthrough" | "delete" | "more" | "changes" | "reset" | "reanalyze" | "flags" | null;
 const navigation = [
   { id: "evidence", name: "Evidence" },
   { id: "estimate", name: "Repair estimate" },
@@ -99,7 +98,6 @@ export default function Workspace({ example }: { example?: Claim }) {
   const [queueFilter, setQueueFilter] = useState("all");
   const [queueQuery, setQueueQuery] = useState("");
   const [flagIndex, setFlagIndex] = useState(0);
-  const [responseId, setResponseId] = useState<string>();
   const [requestReason, setRequestReason] = useState("");
   const [repairItems, setRepairItems] = useState<string[]>([]);
   const [requestPins, setRequestPins] = useState<LocatedPin[]>();
@@ -187,15 +185,10 @@ export default function Workspace({ example }: { example?: Claim }) {
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   function open(next: Overlay) {
-    setResponseId(undefined);
     setOverlay(next);
     setSelectedFinding(null);
     setViewedRequest(undefined);
     setNote("");
-  }
-  function respondToRequest(id: string) {
-    open("add");
-    setResponseId(id);
   }
   function request(type: "more" | "changes", photoIndex = 0, items: string[] = [], reason = "", located?: LocatedPin[]) {
     setRequestPins(located);
@@ -340,7 +333,7 @@ export default function Workspace({ example }: { example?: Claim }) {
     go(reviewingEstimate ? "estimate" : "evidence");
     if (nextAction && reviewingEstimate && role === "agent") setEstimateFocus(estimateBlocker(claim));
     if (!nextAction || role !== "agent") return;
-    if (status.group === "awaiting") open("add");
+    if (status.group === "awaiting") setViewedRequest(claim.evidenceRequests?.find(r => r.status === "awaiting"));
     else if (status.group === "attention" && claim.stage === "missing") request("more");
     else if (status.group === "attention" && claim.stage === "uncertain") { setFlagIndex(0); open("flags"); }
     else if (status.group === "new" || status.group === "ready" && needsScopeReview(claim)) {
@@ -351,7 +344,6 @@ export default function Workspace({ example }: { example?: Claim }) {
   function analysisAction(action: AnalysisAction) {
     if (action === "analyze") { c.lines.length && !c.evidenceUpdated ? open("reanalyze") : void analyze(c, "quality"); return; }
     if (action === "request") { request("more"); return; }
-    if (action === "receive") { open("add"); return; }
     if (action === "requestRecord") {
       const latest = [...(c.evidenceRequests ?? [])].reverse().find(item => item.status === "awaiting");
       if (latest) setViewedRequest(latest);
@@ -367,8 +359,6 @@ export default function Workspace({ example }: { example?: Claim }) {
       key={c.id}
       claim={c}
       saveAnnotation={save}
-      onAdd={() => open("add")}
-      onRespond={respondToRequest}
       onRequest={(index) => request("more", index)}
       onReview={() => c.lines.length && !c.evidenceUpdated ? open("reanalyze") : void analyze(c, "quality")}
       readOnly={role === "senior" || c.stage === "senior"}
@@ -454,12 +444,6 @@ export default function Workspace({ example }: { example?: Claim }) {
             </div>
           )}
           {progressVisible && <AnalysisPanel claim={c} run={activeRun} canAct={ready && role === "agent" && c.stage !== "senior" && c.stage !== "authorized"} detailsOpen={detailsOpen} setDetailsOpen={setDetailsOpen} onAction={analysisAction} />}
-          {tab === "evidence" && role === "agent" && c.evidenceRequests?.filter(r => r.recipient === "Policyholder" && r.status === "awaiting").map(r =>
-            <div className="notice" key={r.id}>
-              <strong>Policyholder update · Demo</strong>
-              <p style={{whiteSpace: "pre-line"}}>{r.message || r.pins[0]?.comment}</p>
-              <button className="text-button" onClick={() => { open("policyholder"); setResponseId(r.id); }}>View as policyholder</button>
-            </div>)}
           <SeniorFrame role={role} claims={claims} active={c.id} select={id => { setActive(id); setShowProgress(true); setDetailsOpen(false); go("estimate"); setError(""); }}>
           {needsScopeReview(c) && c.lines.length > 0 && <p className="scope-notice">Previous assessment · Outdated. Assess the updated evidence and accident description before approving this estimate.</p>}
           {role === "senior" && c.stage !== "senior" && c.stage !== "authorized" && <p className="scope-notice">This claim has not been submitted for senior approval.</p>}
@@ -495,34 +479,16 @@ export default function Workspace({ example }: { example?: Claim }) {
           close={() => setSelectedFinding(null)}
         />
       )}
-      {(overlay === "add" || overlay === "policyholder") && (
-        <Intake
-          existing={c}
-          policyholder={overlay === "policyholder"}
-          requestId={responseId}
-          close={() => open(null)}
-          save={async (next) => {
-            if (!await save(next)) { open(null); return; }
-            setActive(next.id);
-            setDashboard(false);
-            setShowProgress(true); setDetailsOpen(false);
-            setError("");
-            go("evidence");
-            open(null);
-
-          }}
-        />
-      )}
       {overlay === "flags" && <Modal title="Review flagged evidence" wide close={() => open(null)}>
         {issues.length > 1 && <label className="flag-picker">Flagged observation<select value={flagIndex} onChange={e => setFlagIndex(Number(e.target.value))}>{issues.map((f,i) => <option key={i} value={i}>{i + 1}. {f.text}</option>)}</select></label>}
         <p className="flag-observation">{issue.text}</p>
-        <FlagPhotos key={flagIndex} claim={c} issue={issue} canRequest={role === "agent"} onRequest={(index, located) => request("more", index, [], issue.text, located)} />
+        <FlagPhotos key={flagIndex} claim={c} issue={issue} canRequest={role === "agent" && !awaitingEvidence} onRequest={(index, located) => request("more", index, [], issue.text, located)} />
         {role === "agent" && c.stage === "uncertain" && !awaitingEvidence && <button className="primary" onClick={async () => {
           const next = addEvent(c, "Evidence accepted by agent", "Agent accepted the available evidence for damage assessment.", { stage: "assessment", override: true });
           if (await save(next)) { open(null); void analyze(next, "damage"); }
         }}>Accept evidence &amp; assess damage</button>}
       </Modal>}
-      {viewedRequest && <EvidenceRequestEditor claim={c} record={viewedRequest} onRespond={role === "agent" ? respondToRequest : undefined} close={() => setViewedRequest(undefined)} />}
+      {viewedRequest && <EvidenceRequestEditor claim={c} record={viewedRequest} close={() => setViewedRequest(undefined)} />}
       {overlay === "more" && role === "agent" && (
         <EvidenceRequestEditor key={c.id} claim={c} reason={requestReason} located={requestPins} repairItems={repairItems} initialIndex={requestPhoto} close={() => open(null)} save={next => {
           save(next); open(null); go("evidence");

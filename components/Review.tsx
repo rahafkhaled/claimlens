@@ -138,7 +138,7 @@ export function Review({
               <button disabled={!selected.length} onClick={() => setSelected([])}>Deselect all</button>
             </div><div className="item-tools">
               <button disabled={!selected.length} onClick={() => startEdit()}><PencilLine size={14} />Edit items</button>
-              <button disabled={!selected.length} onClick={() => request("more", selectedItems)}><FileText size={14} />Request evidence</button>
+              {!awaitingEvidence && <button disabled={!selected.length} onClick={() => request("more", selectedItems)}><FileText size={14} />Request evidence</button>}
               <button disabled={!selected.length} onClick={() => request("changes", selectedItems)}><Flag size={14} />Flag for review</button>
             </div></div>}
           </div>}
@@ -284,7 +284,7 @@ export function Review({
           <FileText />
           <h3>{c.evidenceUpdated && !awaitingEvidence ? "Updated evidence ready for assessment" : awaitingEvidence ? "Awaiting policyholder response" : stage === "missing" ? "More evidence needed" : stage === "uncertain" ? "Evidence needs manual review" : c.excludedFindings?.length ? "No accident-related repairs confirmed" : "Estimate pending"}</h3>
           <p>
-            {c.evidenceUpdated && !awaitingEvidence ? "Assess the updated evidence in the Evidence tab." : awaitingEvidence ? "Add the policyholder response in Evidence, then assess the updated evidence." : stage === "missing" ? "Request the missing views from the Evidence tab." : stage === "uncertain" ? "Resolve the flagged evidence before creating an estimate." : c.excludedFindings?.length ? "Check the accident description and observations below." : "Assess evidence to create an estimate."}
+            {c.evidenceUpdated && !awaitingEvidence ? "Assess the updated evidence in the Evidence tab." : awaitingEvidence ? "The request has been recorded. The next step belongs to the policyholder." : stage === "missing" ? "Request the missing views from the Evidence tab." : stage === "uncertain" ? "Resolve the flagged evidence before creating an estimate." : c.excludedFindings?.length ? "Check the accident description and observations below." : "Assess evidence to create an estimate."}
           </p>
           <button className="secondary" onClick={onEvidence}>Open evidence</button>
         </div>

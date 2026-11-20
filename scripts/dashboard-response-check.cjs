@@ -1,6 +1,5 @@
 const { chromium } = require('playwright-core');
 const assert = require('node:assert/strict');
-const preset = require('./fixtures/demo-assessments-v2.json')[0];
 const url = process.env.CLAIMLENS_URL || 'http://127.0.0.1:3184';
 async function stored(page) { return page.evaluate(() => new Promise(resolve => { const req = indexedDB.open('keyval-store'); req.onsuccess = () => { const db = req.result; const read = db.transaction('keyval').objectStore('keyval').get('claimlens.workspace.v1'); read.onsuccess = () => { resolve(read.result); db.close(); }; }; })); }
 (async () => {
@@ -15,8 +14,12 @@ async function stored(page) { return page.evaluate(() => new Promise(resolve => 
  await page.getByLabel('Search claims').fill('not a claim'); await page.getByText('No matching claims',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Clear filters'}).click();
  await page.locator('.claim-title').first().click();
- let mode='missing', calls=0;
- await page.route('**/api/analyze', route => { if (route.request().postDataJSON().step === 'pins') return route.fulfill({json:{pins:[]}}); calls++; if(mode==='sufficient') return route.fulfill({json:route.request().postDataJSON().step==='quality' ? {quality:{summary:preset.quality,gaps:[]},decision:preset.decision} : {findings:preset.findings,lines:preset.lines}}); if(mode==='error') return route.fulfill({status:503,json:{error:'Temporary test failure'}}); return route.fulfill({json:{quality:{summary:'The detail is blurred.',gaps:['Provide a clear bumper close-up.']},decision:{choice:'missing',confidence:.95}}}); });
+ let calls=0;
+ await page.route('**/api/analyze', route => {
+   if (route.request().postDataJSON().step === 'pins') return route.fulfill({json:{pins:[]}});
+   calls++;
+   return route.fulfill({json:{quality:{summary:'The detail is blurred.',gaps:['Provide a clear bumper close-up.']},decision:{choice:'missing',confidence:.95}}});
+ });
  await page.getByRole('button',{name:'Assess evidence',exact:true}).click();
  const flow=page.getByRole('region',{name:'Claim review progress'});
  await flow.getByRole('heading',{name:'More evidence needed',exact:true}).waitFor();
@@ -25,42 +28,24 @@ async function stored(page) { return page.evaluate(() => new Promise(resolve => 
  assert.equal(await dialog.getByLabel('Request notes').inputValue(),'Provide a clear bumper close-up.');
  await dialog.getByRole('button',{name:'Send evidence request',exact:true}).click();
  await flow.getByRole('heading',{name:'Awaiting policyholder response',exact:true}).waitFor();
- await flow.getByRole('button',{name:'Add policyholder response',exact:true}).click();
- dialog=page.getByRole('dialog',{name:'Respond to evidence request'});
- assert.equal(await dialog.locator('input[type=checkbox]:checked').count(),1);
- assert(await dialog.innerText().then(t=>t.includes('Provide a clear bumper close-up.')));
- await dialog.getByLabel('Response / inspection notes').fill('Policyholder provided an inspection note confirming the bumper corner was photographed in daylight.');
- await dialog.getByRole('button',{name:'Save response',exact:true}).click();
- await flow.getByRole('heading',{name:'Updated evidence ready for assessment',exact:true}).waitFor();
- assert.equal(calls,1,'Saving response must not run assessment');
- let data=await stored(page); let c=data.claims.find(c=>c.id===data.active);
- assert.equal(c.evidenceRequests[0].status,'received'); assert.equal(c.decision.choice,'missing'); assert.equal(c.quality,'The detail is blurred.'); assert(c.evidenceUpdated); assert(c.scopeNeedsReview);
- await page.screenshot({path:'/tmp/claimlens-response.png',fullPage:true});
- mode='error'; await flow.getByRole('button',{name:'Assess updated evidence',exact:true}).click();
- await flow.getByRole('heading',{name:'Analysis interrupted'}).waitFor();
- data=await stored(page);c=data.claims.find(c=>c.id===data.active);assert.equal(c.decision.choice,'missing');assert(c.evidenceUpdated);
- mode='missing'; await flow.getByRole('button',{name:'Try analysis again'}).click();
- await flow.getByRole('heading',{name:'Additional evidence still needed'}).waitFor();
- await flow.getByRole('button',{name:'Review remaining gaps'}).waitFor();
- await page.reload();await page.locator('.claim-title').first().click();await flow.getByRole('heading',{name:'Additional evidence still needed'}).waitFor();
- mode='sufficient'; await page.getByRole('button',{name:'Assess evidence again',exact:true}).click();
- await flow.getByRole('button',{name:'Review estimate',exact:true}).waitFor();
- let before=await stored(page);const draft=before.claims.find(c=>c.id===before.active);assert(draft.lines.length);
- await page.getByRole('button',{name:'Add policyholder response',exact:true}).click();
- await page.getByLabel('Response / inspection notes').fill('Additional inspection notes for reassessment of the existing repair estimate.');
- await page.getByRole('button',{name:'Save evidence',exact:true}).click();
- await flow.getByRole('heading',{name:'Updated evidence ready for assessment'}).waitFor();
- let updated=await stored(page);assert.deepEqual(updated.claims.find(c=>c.id===updated.active).lines,draft.lines);
- await page.getByRole('button',{name:'Repair estimate',exact:true}).click();assert(await page.getByRole('button',{name:'Submit estimate for approval',exact:true}).isDisabled());
- await page.getByRole('button',{name:'Evidence 6',exact:true}).click();
- mode='error';await flow.getByRole('button',{name:'Assess updated evidence',exact:true}).click();await flow.getByRole('heading',{name:'Analysis interrupted'}).waitFor();
- updated=await stored(page);assert.deepEqual(updated.claims.find(c=>c.id===updated.active).lines,draft.lines);
- mode='sufficient';await flow.getByRole('button',{name:'Try analysis again'}).click();await flow.getByRole('button',{name:'Review estimate',exact:true}).waitFor();
- updated=await stored(page);assert.equal(updated.claims.find(c=>c.id===updated.active).evidenceUpdated,false);
+ for (const reload of [false, true]) {
+   if (reload) {
+     await page.reload();
+     await page.locator('.claim-title').first().click();
+   }
+   await flow.getByRole('button',{name:'View request',exact:true}).click();
+   await page.getByRole('dialog').getByText('Provide a clear bumper close-up.',{exact:true}).first().waitFor();
+   assert.equal(await page.getByRole('dialog').locator('textarea,input[type=file]').count(),0);
+   await page.keyboard.press('Escape');
+   assert.equal(await page.getByRole('button',{name:/Add policyholder response|View as policyholder|Assess evidence again/}).count(),0);
+ }
+ const data=await stored(page);
+ assert.equal(data.claims.find(c=>c.id===data.active).evidenceRequests[0].status,'awaiting');
+ assert.equal(calls,1);
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/tmp/claimlens-workspace-mobile.png',fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.getByRole('button',{name:'All claims',exact:true}).click();await page.screenshot({path:'/tmp/claimlens-dashboard-mobile.png',fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
- assert.deepEqual(errors,[]); console.log('PASS dashboard search, response binding, preserved assessment, explicit reassessment, failure recovery, repeat gaps, persistence, and mobile layouts');
+ assert.deepEqual(errors,[]); console.log('PASS dashboard search, sent request, read-only waiting state, persistence, and mobile layouts');
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exit(1)});

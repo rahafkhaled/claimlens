@@ -9,14 +9,13 @@ import { Modal } from "./ui";
 // getRandomValues also works on the demo's HTTP LAN address.
 const newId = () => Array.from(crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8, "0")).join("");
 
-export function EvidenceRequestEditor({ claim, initialIndex = 0, located, repairItems = [], reason = "", record, close, save, onRespond }: {
+export function EvidenceRequestEditor({ claim, initialIndex = 0, located, repairItems = [], reason = "", record, close, save }: {
   claim: Claim;
   initialIndex?: number;
   located?: LocatedPin[];
   reason?: string;
   repairItems?: string[];
   record?: EvidenceRequest;
-  onRespond?: (id: string) => void;
   close: () => void;
   save?: (claim: Claim) => void;
 }) {
@@ -178,7 +177,6 @@ export function EvidenceRequestEditor({ claim, initialIndex = 0, located, repair
       </div>
       <div className="request-footer">
         <small>Demo delivery · Recorded in the claim activity log.</small>
-        {record?.status === "awaiting" && onRespond && <button type="button" className="primary" onClick={() => onRespond(record.id)}>Add policyholder response <ArrowRight size={15} /></button>}
         {!readOnly && <button className="primary" disabled={generating || !valid}>Send evidence request <ArrowRight size={15} /></button>}
       </div>
     </form>
@@ -189,7 +187,7 @@ export function EvidenceRequestEditor({ claim, initialIndex = 0, located, repair
   </Modal>;
 }
 
-export function EvidenceRequests({ claim, onRespond }: { claim: Claim; onRespond?: (id: string) => void }) {
+export function EvidenceRequests({ claim }: { claim: Claim }) {
   const [selected, setSelected] = useState<EvidenceRequest>();
   if (!claim.evidenceRequests?.length) return null;
   return <section className="evidence-requests" aria-label="Evidence requests">
@@ -197,6 +195,6 @@ export function EvidenceRequests({ claim, onRespond }: { claim: Claim; onRespond
     {[...claim.evidenceRequests].reverse().map((request, n) => <button type="button" className="request-record" key={request.id} onClick={() => setSelected(request)}>
       <MapPin size={17} /><span><strong>Request {claim.evidenceRequests!.length - n} · {request.recipient}</strong><small>{request.pins.length} photo comments · {new Date(request.created).toLocaleDateString()}</small><span>{request.message || request.pins[0]?.comment}</span></span><span className="request-status">{request.status === "awaiting" ? "Awaiting policyholder response" : "Response received"}<ArrowRight size={14} /></span>
     </button>)}
-    {selected && <EvidenceRequestEditor claim={claim} record={selected} onRespond={onRespond && (id => { setSelected(undefined); onRespond(id); })} close={() => setSelected(undefined)} />}
+    {selected && <EvidenceRequestEditor claim={claim} record={selected} close={() => setSelected(undefined)} />}
   </section>;
 }

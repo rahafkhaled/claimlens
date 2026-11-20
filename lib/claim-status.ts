@@ -5,7 +5,7 @@ export function estimateBlocker(claim: Claim) {
 }
 
 export function claimStatus(c: Claim) {
-  if (c.evidenceRequests?.some(r => r.status === "awaiting")) return { label: "Awaiting policyholder response", action: "Add policyholder response", group: "awaiting", tone: "amber" };
+  if (c.evidenceRequests?.some(r => r.status === "awaiting")) return { label: "Awaiting policyholder response", action: "View request", group: "awaiting", tone: "amber" };
   if (needsScopeReview(c) && (c.evidenceUpdated || c.lines.length || c.decision || c.evidenceRequests?.some(r => r.status === "received"))) return { label: "Updated evidence ready for assessment", action: "Assess updated evidence", group: "ready", tone: "blue" };
   if (c.stage === "missing") return { label: c.evidenceRequests?.some(r => r.status === "received") ? "Additional evidence still needed" : "More evidence needed", action: "Request additional evidence", group: "attention", tone: "amber" };
   if (c.stage === "uncertain") return { label: "Evidence needs manual review", action: "Review flagged evidence", group: "attention", tone: "amber" };

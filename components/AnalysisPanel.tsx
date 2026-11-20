@@ -5,11 +5,11 @@ import type { ReviewRun } from "@/lib/review-progress";
 import { estimateBlocker } from "@/lib/claim-status";
 import { WorkflowMap } from "./WorkflowMap";
 
-export type AnalysisAction = "analyze" | "request" | "receive" | "flagged" | "estimate" | "inspection" | "pricing" | "authorization" | "requestRecord";
+export type AnalysisAction = "analyze" | "request" | "flagged" | "estimate" | "inspection" | "pricing" | "authorization" | "requestRecord";
 type Outcome = { title: string; detail: string; label: string; action: AnalysisAction };
 function outcome(claim: Claim, run: ReviewRun | undefined, canAct: boolean): Outcome {
   const awaiting = claim.evidenceRequests?.filter(request => request.status === "awaiting").length ?? 0;
-  if (awaiting) return { title: "Awaiting policyholder response", detail: awaiting === 1 ? "One evidence request is open. Record the reply when it arrives." : `${awaiting} evidence requests are open. Select the requests covered by the reply.`, label: canAct ? "Add policyholder response" : "View request", action: canAct ? "receive" : "requestRecord" };
+  if (awaiting) return { title: "Awaiting policyholder response", detail: "The request has been recorded. The next step belongs to the policyholder.", label: "View request", action: "requestRecord" };
   if (run?.phase === "error") return { title: "Analysis interrupted", detail: (run.error ?? "The analysis could not finish.") + " Your saved assessment is unchanged.", label: "Try analysis again", action: "analyze" };
   if (claim.evidenceUpdated) return { title: "Updated evidence ready for assessment", detail: "The response is saved. The previous assessment is outdated and remains available until reassessment succeeds.", label: "Assess updated evidence", action: "analyze" };
   if (needsScopeReview(claim)) return { title: "Evidence needs analysis", detail: "Check the evidence against the current accident description before using this estimate.", label: "Assess updated evidence", action: "analyze" };
@@ -68,7 +68,6 @@ export function AnalysisPanel({ claim, run, canAct, detailsOpen, setDetailsOpen,
       {!running && verdictText && verdictText !== result.title && <p>{verdictText}</p>}
     </div>}
     {!running && claim.stage === "missing" && !claim.evidenceUpdated && <button className="text-button analysis-request-link" onClick={() => onAction("flagged")}>Review flagged evidence</button>}
-    {canAct && claim.evidenceRequests?.some(request => request.status === "awaiting") && <button className="text-button analysis-request-link" onClick={() => onAction("requestRecord")}>View request</button>}
     {!initial && !running && <button className="analysis-disclosure" aria-expanded={detailsOpen} aria-controls="analysis-details" onClick={() => setDetailsOpen(!detailsOpen)}>
       {detailsOpen ? "Hide analysis details" : "View analysis details"}<ChevronDown size={15} />
     </button>}
