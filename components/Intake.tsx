@@ -7,11 +7,13 @@ import { Modal } from "./ui";
 export function Intake({
   existing,
   requestId,
+  policyholder = false,
   close,
   save,
 }: {
   existing?: Claim;
   requestId?: string;
+  policyholder?: boolean;
   close: () => void;
   save: (c: Claim) => void;
 }) {
@@ -25,6 +27,7 @@ export function Intake({
     [details, setDetails] = useState("");
   const pendingRequests = existing?.evidenceRequests?.filter(request => request.status === "awaiting") ?? [];
   const [responseIds, setResponseIds] = useState<string[]>(requestId ? [requestId] : pendingRequests.length === 1 ? [pendingRequests[0].id] : []);
+  const request = pendingRequests.find(r => r.id === requestId);
   const input = useRef<HTMLInputElement>(null);
   async function add(files: FileList) {
     setError("");
@@ -41,12 +44,13 @@ export function Intake({
   }
   return (
     <Modal
-      title={existing ? pendingRequests.length ? "Respond to evidence request" : "Add evidence" : "Add demo case"}
+      title={policyholder ? "Your evidence request" : existing ? pendingRequests.length ? "Respond to evidence request" : "Add evidence" : "Add demo case"}
       close={close}
     >
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (policyholder && (!request || !photos.length)) { setError("Attach a photo or video to respond to this request."); return; }
           if (
             !photos.length &&
             !(existing && retained.length && details.trim())
@@ -115,7 +119,7 @@ export function Intake({
             addEvent(
               c,
               existing ? "Additional evidence received" : "Claim received",
-              [photos.length ? photos.length + " evidence file(s) added." : "Inspection details updated.",
+              [policyholder && "Submitted through the demo policyholder portal.", photos.length ? photos.length + " evidence file(s) added." : "Inspection details updated.",
                existing && (outstanding.length ? "Awaiting remaining policyholder responses." : "Updated evidence ready for assessment.")].filter(Boolean).join(" "),
               {
                 stage: existing ? existing.stage : "intake",
@@ -155,12 +159,20 @@ export function Intake({
             </label>
           </>
         )}
-        {existing?.request && <p className="notice">{existing.request}</p>}
-        {pendingRequests.length > 0 && <fieldset className="response-requests"><legend>This response addresses</legend>
+        {policyholder && request && <section aria-label="Message from your claims agent">
+          <small>Policyholder view · Demo</small>
+          <h3>{existing?.vehicle} · {existing?.id}</h3>
+          <p>Message from your claims agent</p>
+          <p className="notice" style={{whiteSpace: "pre-line"}}>{request.message}</p>
+          {request.repairItems?.length ? <p>Requested items · {request.repairItems.join(", ")}</p> : null}
+          {request.pins.map(pin => <p key={pin.id}><strong>{pin.photoName}</strong> · {pin.comment}</p>)}
+        </section>}
+        {!policyholder && existing?.request && <p className="notice">{existing.request}</p>}
+        {!policyholder && pendingRequests.length > 0 && <fieldset className="response-requests"><legend>This response addresses</legend>
           {pendingRequests.map(request => <label key={request.id}><input type="checkbox" checked={responseIds.includes(request.id)} onChange={event => setResponseIds(old => event.target.checked ? [...old, request.id] : old.filter(id => id !== request.id))} /><span>Request {(existing?.evidenceRequests?.findIndex(item => item.id === request.id) ?? 0) + 1} · {request.recipient} · {[request.message, ...request.pins.map(pin => pin.comment)].filter(Boolean).join(" · ")}</span></label>)}
         </fieldset>}
         <label>
-          {existing ? "Response / inspection notes" : "Accident description"}
+          {policyholder ? "Message to your claims agent (optional)" : existing ? "Response / inspection notes" : "Accident description"}
           <textarea
             required={!existing}
             minLength={existing ? undefined : 10}
@@ -168,11 +180,11 @@ export function Intake({
             rows={3}
             value={details}
             onChange={(e) => setDetails(e.target.value)}
-            placeholder="Describe what happened, the impact area and the damage being claimed."
+            placeholder={policyholder ? "Add any details about the files you’re sending." : "Describe what happened, the impact area and the damage being claimed."}
           />
         </label>
-        <div className="field-label">{existing ? "Existing evidence" : "Evidence"}</div>
-        {existing && (
+        <div className="field-label">{policyholder ? "Requested photos or video" : existing ? "Existing evidence" : "Evidence"}</div>
+        {!policyholder && existing && (
           <div className="retained">
             {retained.map((p, i) => (
               <div key={i}>
@@ -190,7 +202,7 @@ export function Intake({
             ))}
           </div>
         )}
-        {existing && <p className="response-help">New response evidence · Add files below. Saving a response does not confirm sufficiency; assess the updated evidence next.</p>}
+        {!policyholder && existing && <p className="response-help">New response evidence · Add files below. Saving a response does not confirm sufficiency; assess the updated evidence next.</p>}
         <button
           disabled={filesBusy}
           type="button"
@@ -248,7 +260,7 @@ export function Intake({
             Cancel
           </button>
           <button className="primary" disabled={filesBusy}>
-            {existing ? pendingRequests.length ? "Save response" : "Save evidence" : "Add demo case"}
+            {policyholder ? "Send evidence to agent" : existing ? pendingRequests.length ? "Save response" : "Save evidence" : "Add demo case"}
             <ArrowRight size={15} />
           </button>
         </div>

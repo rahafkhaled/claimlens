@@ -25,97 +25,8 @@ import {
   total,
 } from "@/lib/claims";
 import { Modal } from "./ui";
-import { activityTitle, claimStatus, decisionLabel } from "@/lib/claim-status";
+import { activityTitle, claimStatus } from "@/lib/claim-status";
 import { PricingSource } from "./PricingSource";
-export function downloadReport(c: Claim) {
-  const content = [
-    c.stage === "authorized"
-      ? "AUTHORIZED REPAIR REPORT"
-      : "DRAFT REPAIR ESTIMATE",
-    c.id + " | " + c.title,
-    c.vehicle,
-    "",
-    "Accident description: " + (c.accidentDescription ?? c.details),
-    "",
-    c.sample
-      ? "Demo claim — synthetic imagery; simulated decisions, prices and authorization"
-      : "Vehicle inspection record",
-    needsScopeReview(c) ? "OUTDATED ASSESSMENT — reassessment required before approval" : "Evidence review",
-    c.quality,
-    c.decision ? "Evidence decision: " + decisionLabel[c.decision.choice] + " | Confidence: " + Math.round(c.decision.confidence * 100) + "% | " + (c.decisionSource === "jev" ? "Decision Model" : c.sample ? "Preset demo" : "Recorded decision") : "",
-    c.decision?.reason ? "Routing check: " + c.decision.reason + " | Original model route: " + c.decision.modelChoice : "",
-    c.override ? "Agent override: evidence accepted" : "",
-    c.request,
-    "",
-    "Evidence requests (demo; no external delivery)",
-    ...(c.evidenceRequests ?? []).flatMap(request => [
-      `${request.created} | ${request.recipient} | ${request.status}`,
-      request.message,
-      ...request.pins.map((pin, i) => `Pin ${i + 1} | ${pin.photoName} | Position ${pin.x.toFixed(1)}%, ${pin.y.toFixed(1)}% | ${pin.comment}`),
-    ]),
-    "",
-    "Damage assessment",
-    ...c.findings.map((f) =>
-      [
-        f.component + " — " + f.severity,
-        f.damage,
-        f.repair,
-        f.accidentReason ? "Accident relevance: " + f.accidentReason : "",
-        f.inspectionEvidence ? "Visible inspection trigger: " + f.inspectionEvidence.observation : "",
-        "Sources: " +
-          (f.evidence
-            ?.map(
-              (r) =>
-                (c.photos[r.item - 1]?.name ?? "Evidence " + r.item) +
-                (r.seconds != null ? " at " + r.seconds + "s" : ""),
-            )
-            .join(", ") || "Earlier assessment; no region recorded"),
-      ].join(" | "),
-    ),
-    "",
-    ...(c.authorization
-      ? [
-          "Authorized shop: " + c.authorization.shop,
-          "Senior adjuster: " + c.authorization.adjuster,
-          "Decision date: " + c.authorization.at,
-          "",
-        ]
-      : []),
-    "Excluded from estimate",
-    ...(c.excludedFindings ?? []).map(f => f.component + " | " + f.accidentRelation + " | " + f.accidentReason),
-    "Repair estimate (QAR) — illustrative prices",
-    ...c.lines.map((l) =>
-      [
-        l.component,
-        l.repair,
-        "Parts " + money(l.parts),
-        "Labor " + money(l.labor),
-        l.source,
-        l.zeroCostReason ? "Zero-cost reason: " + l.zeroCostReason : "",
-        l.catalogueId ? "Catalogue: " + l.catalogueId : "",
-        inspectionSummary(l),
-        l.inspectionNote ? "Agent approval: " + l.inspectionNote : "",
-      ].join(" | "),
-    ),
-    "",
-    (c.lines.some((l) => l.needsQuote) ? "Priced items subtotal " : "Total ") +
-      money(total(c.lines)),
-    "",
-    "Decision history",
-    ...c.log.map((l) => l.at + " | " + activityTitle(c,l) + " | " + l.detail),
-  ]
-    .filter((x) => x !== undefined)
-    .join("\n");
-  const url = URL.createObjectURL(
-      new Blob([content], { type: "text/plain;charset=utf-8" }),
-    ),
-    a = document.createElement("a");
-  a.href = url;
-  a.download =
-    c.id + "-" + (c.stage === "authorized" ? "authorized" : "draft") + ".txt";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 export function Review({
   c,
   role,
@@ -357,23 +268,15 @@ export function Review({
                 </button>
               </>
             )}
-            {stage === "authorized" && (
-              <button className="primary" onClick={() => downloadReport(c)}>
-                <Download />
-                Download authorized report
-              </button>
-            )}
-            {stage !== "authorized" && (
-              <button className="text-button" disabled={exporting} onClick={async () => {
-                setExporting(true); setExportError("");
-                try { const { downloadDraftPdf } = await import("@/lib/draft-pdf"); downloadDraftPdf(c); }
-                catch { setExportError("PDF export failed. Please try again."); }
-                finally { setExporting(false); }
-              }}>
-                <Download />
-                {exporting ? "Preparing PDF…" : "Download draft PDF"}
-              </button>
-            )}
+            <button className={stage === "authorized" ? "primary" : "text-button"} disabled={exporting} onClick={async () => {
+              setExporting(true); setExportError("");
+              try { const { downloadReportPdf } = await import("@/lib/draft-pdf"); downloadReportPdf(c); }
+              catch { setExportError("PDF export failed. Please try again."); }
+              finally { setExporting(false); }
+            }}>
+              <Download />
+              {exporting ? "Preparing PDF…" : stage === "authorized" ? "Download authorized report" : "Download draft PDF"}
+            </button>
           </div>
         </>
       ) : (

@@ -4,9 +4,11 @@ import autoTable from "jspdf-autotable";
 import { type Claim, displayDate, money, needsScopeReview, total } from "./claims";
 import { activityTitle, claimStatus, decisionLabel } from "./claim-status";
 
-export function downloadDraftPdf(c: Claim) {
+export function downloadReportPdf(c: Claim) {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  pdf.setProperties({title: c.id + " | Draft repair estimate"});
+  const authorized = c.stage === "authorized";
+  const title = authorized ? "Authorized repair report" : "Draft repair estimate";
+  pdf.setProperties({title: c.id + " | " + title});
   const ink: [number,number,number] = [27,39,59];
   const blue: [number,number,number] = [52,75,158];
   let y = 31;
@@ -22,7 +24,7 @@ export function downloadDraftPdf(c: Claim) {
       didDrawPage: data => { y=(data.cursor?.y ?? 30)+12; }
     });
   }
-  pdf.setFont("helvetica","bold").setFontSize(23).setTextColor(...ink).text("Draft repair estimate",17,y+5);
+  pdf.setFont("helvetica","bold").setFontSize(23).setTextColor(...ink).text(title,17,y+5);
   y+=15;
   section("Claim summary",["Claim record","Details"],[
     ["Vehicle",c.vehicle],["Incident",c.title],["Opened",displayDate(c.created)],["Status",claimStatus(c).label],
@@ -31,7 +33,7 @@ export function downloadDraftPdf(c: Claim) {
   ]);
   section("Estimated repair costs",["Repair item","Parts (QAR)","Labor (QAR)","Amount (QAR)"],[
     ...c.lines.map(l=>[l.component+"\n"+l.repair,...[l.parts,l.labor].map(n=>l.needsQuote ? "—" : n.toFixed(2)),l.needsQuote?"Quote needed":(l.parts+l.labor).toFixed(2)]),
-    [c.lines.some(l=>l.needsQuote)?"Priced items subtotal":"Draft total","","",money(total(c.lines)).replace(/\s/g," ")]
+    [c.lines.some(l=>l.needsQuote)?"Priced items subtotal":authorized ? "Authorized amount" : "Draft total","","",money(total(c.lines)).replace(/\s/g," ")]
   ],true);
   section("Evidence assessment",["Review","Assessment"],[
     ["Outcome",c.decision ? decisionLabel[c.decision.choice]+" · "+Math.round(c.decision.confidence*100)+"% confidence" : "Pending assessment"],
@@ -42,13 +44,22 @@ export function downloadDraftPdf(c: Claim) {
   section("Outside the estimate",["Item","Reason"],(c.excludedFindings??[]).map(f=>[f.component,[f.accidentRelation,f.accidentReason].filter(Boolean).join("\n")]));
   section("Evidence requests",["Request","Instructions"],(c.evidenceRequests??[]).map(r=>[displayDate(r.created)+"\n"+r.recipient+" · "+r.status,[r.message,...r.pins.map((p,i)=>`Pin ${i+1} · ${p.photoName} (${p.x.toFixed(1)}%, ${p.y.toFixed(1)}%)\n${p.comment}`)].filter(Boolean).join("\n")]));
   section("Review history",["Date and event","Record"],c.log.map(e=>[displayDate(e.at)+"\n"+activityTitle(c,e),e.delivery==="recalled"?"Recalled by agent":e.detail]));
+  if (authorized && c.authorization) {
+    const { shop, at, adjuster } = c.authorization;
+    // Keep the authorization and its typed signature together on the final page.
+    if (y > 215) { pdf.addPage(); y = 30; }
+    section("Repair authorization", ["Authorization record", "Details"], [
+      ["Approved repair shop", shop], ["Authorized on", displayDate(at)],
+      ["Senior adjuster signature", adjuster],
+    ]);
+  }
   const pages=pdf.getNumberOfPages();
   for(let n=1;n<=pages;n++){
     pdf.setPage(n);
     pdf.setFont("helvetica","bold").setFontSize(11).setTextColor(...blue).text(c.vehicle,17,14);
     pdf.setFont("helvetica","normal").setFontSize(9).setTextColor(...ink).text(c.id,193,14,{align:"right"});
     pdf.setDrawColor(210,218,232).line(17,18,193,18).line(17,280,193,280);
-    pdf.setFontSize(8).text("DRAFT  /  Repair assessment",17,286).text(n+" / "+pages,193,286,{align:"right"});
+    pdf.setFontSize(8).text(authorized ? "AUTHORIZED  /  Repair assessment" : "DRAFT  /  Repair assessment",17,286).text(n+" / "+pages,193,286,{align:"right"});
   }
-  pdf.save(c.id+"-draft.pdf");
+  pdf.save(c.id + (authorized ? "-authorized.pdf" : "-draft.pdf"));
 }

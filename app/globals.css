@@ -1823,3 +1823,12 @@ html:has(dialog[open]) { overflow: hidden; }
 .flag-photos > [role="status"]:empty { display: none; }
 .flag-observation { color: var(--ink); font-size: 15px; }
 .flag-picker select { text-overflow: ellipsis; }
+
+.finding-gallery { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 25%); gap: 16px; align-items: start; }
+.finding-index { padding: 14px; background: white; border: 1px solid var(--border); border-radius: 8px; }
+.finding-index h3 { font-size: 14px; margin-bottom: 8px; }
+.finding-index button { width: 100%; display: flex; align-items: baseline; gap: 10px; text-align: left; padding: 9px 6px; border-radius: 4px; }
+.finding-index button[aria-pressed=true], .finding-index button:hover { background: #edf1fa; }
+.finding-index b { color: var(--accent); }
+.finding-index small { display: block; color: var(--muted); }
+@media (max-width: 700px) { .finding-gallery { grid-template-columns: 1fr; } }

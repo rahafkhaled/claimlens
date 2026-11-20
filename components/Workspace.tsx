@@ -39,7 +39,7 @@ import { Intake } from "./Intake";
 import { Activity, Review, SubmissionStatus } from "./Review";
 
 type Tab = "evidence" | "estimate" | "activity";
-type Overlay = "new" | "add" | "more" | "changes" | "reset" | "reanalyze" | "flags" | null;
+type Overlay = "policyholder" | "new" | "add" | "more" | "changes" | "reset" | "reanalyze" | "flags" | null;
 const navigation = [
   { id: "evidence", name: "Evidence" },
   { id: "estimate", name: "Repair estimate" },
@@ -453,6 +453,12 @@ export default function Workspace({ example }: { example?: Claim }) {
             </div>
           )}
           {progressVisible && <AnalysisPanel claim={c} run={activeRun} canAct={ready && role === "agent" && c.stage !== "senior" && c.stage !== "authorized"} detailsOpen={detailsOpen} setDetailsOpen={setDetailsOpen} onAction={analysisAction} />}
+          {tab === "evidence" && role === "agent" && c.evidenceRequests?.filter(r => r.recipient === "Policyholder" && r.status === "awaiting").map(r =>
+            <div className="notice" key={r.id}>
+              <strong>Policyholder update · Demo</strong>
+              <p style={{whiteSpace: "pre-line"}}>{r.message || r.pins[0]?.comment}</p>
+              <button className="text-button" onClick={() => { open("policyholder"); setResponseId(r.id); }}>View as policyholder</button>
+            </div>)}
           <SeniorFrame role={role} claims={claims} active={c.id} select={id => { setActive(id); setShowProgress(true); setDetailsOpen(false); go("estimate"); setError(""); }}>
           {needsScopeReview(c) && c.lines.length > 0 && <p className="scope-notice">Previous assessment · Outdated. Assess the updated evidence and accident description before approving this estimate.</p>}
           {role === "senior" && c.stage !== "senior" && c.stage !== "authorized" && <p className="scope-notice">This claim has not been submitted for senior approval.</p>}
@@ -488,13 +494,14 @@ export default function Workspace({ example }: { example?: Claim }) {
           close={() => setSelectedFinding(null)}
         />
       )}
-      {(overlay === "new" || overlay === "add") && (
+      {(overlay === "new" || overlay === "add" || overlay === "policyholder") && (
         <Intake
-          existing={overlay === "add" ? c : undefined}
+          existing={overlay === "new" ? undefined : c}
+          policyholder={overlay === "policyholder"}
           requestId={responseId}
           close={() => open(null)}
-          save={(next) => {
-            save(next);
+          save={async (next) => {
+            if (!await save(next)) { open(null); return; }
             setActive(next.id);
             setDashboard(false);
             setShowProgress(true); setDetailsOpen(false);

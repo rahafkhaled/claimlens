@@ -13,7 +13,23 @@ const clock = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
   String(Math.floor(seconds % 60)).padStart(2, "0");
-type PhotoPin = { source?: EvidencePin["source"]; id: string; x: number; y: number; title: string; detail: string };
+type PhotoPin = { label?: string; source?: EvidencePin["source"]; id: string; x: number; y: number; title: string; detail: string };
+
+function overview(photo: Photo) {
+  return /overview|wide shot|^(front|rear)[ -](left|right)( view)?$/i.test(photo.name);
+}
+
+function bestEvidence(claim: Claim, index: number) {
+  const refs = claim.findings[index].evidence?.filter(ref => claim.photos[ref.item - 1]) ?? [];
+  function score(ref: typeof refs[number]) {
+    const photo = claim.photos[ref.item - 1];
+    const [top, left, bottom, right] = ref.box;
+    return (overview(photo) ? -2 : /close.?up|detail/i.test(photo.name) ? 2 : 0)
+      + (bottom - top) * (right - left) / 1e6;
+  }
+  return refs.reduce<typeof refs[number] | undefined>((best, ref) =>
+    !best || score(ref) > score(best) ? ref : best, undefined);
+}
 
 export function photoPins(claim: Claim, photo: Photo, index: number): PhotoPin[] {
   if (photo.kind === "video") return [];
@@ -22,17 +38,17 @@ export function photoPins(claim: Claim, photo: Photo, index: number): PhotoPin[]
       ...pin, title: "Evidence request", detail: pin.comment,
     }))
   );
-  if (needsScopeReview(claim)) return requests;
+  if (needsScopeReview(claim) || overview(photo)) return requests;
   return requests.concat(claim.findings.flatMap((finding, n) => {
-    const ref = finding.evidence?.find(ref => ref.item === index + 1);
-    if (!ref) return [];
+    const ref = bestEvidence(claim, n);
+    if (!ref || ref.item !== index + 1) return [];
     const [top, left, bottom, right] = ref.box;
-    return [{ id: "finding-" + n, source: "ai" as const,
+    return [{ id: "finding-" + n, label: String(n + 1), source: "ai" as const,
       x: (left + right) / 20, y: (top + bottom) / 20, title: finding.component, detail: finding.damage }];
   }));
 }
-function Media({ file, start, pins }: { file: Photo; start?: number; pins?: PhotoPin[] }) {
-  const [selected, setSelected] = useState<string>();
+function Media({ file, start, pins, initialPin }: { initialPin?: string; file: Photo; start?: number; pins?: PhotoPin[] }) {
+  const [selected, setSelected] = useState<string | undefined>(initialPin);
   const active = pins?.find(pin => pin.id === selected) ?? pins?.[0];
   const video = useRef<HTMLVideoElement>(null);
   return (
@@ -61,16 +77,16 @@ function Media({ file, start, pins }: { file: Photo; start?: number; pins?: Phot
           <img className="asset" src={file.src} alt={file.name} />
         )}
         {pins?.map((pin, n) => <button key={pin.id} type="button" className="evidence-pin gallery-pin" data-source={pin.source} title={pinLabel(pin.source)}
-          style={{ left: pin.x + "%", top: pin.y + "%" }} aria-label={`Photo pin ${n + 1}: ${pin.title}`}
-          aria-pressed={active?.id === pin.id} onClick={() => setSelected(pin.id)}><span>{n + 1}</span></button>)}
+          style={{ left: pin.x + "%", top: pin.y + "%" }} aria-label={`Photo pin ${pin.label ?? n + 1}: ${pin.title}`}
+          aria-pressed={active?.id === pin.id} onClick={() => setSelected(pin.id)}><span>{pin.label ?? n + 1}</span></button>)}
       </div>
     </div>
     {active && <div className="gallery-pin-note" aria-live="polite"><MapPin size={16} /><div><strong>{pinLabel(active.source)} · {active.title}</strong><p>{active.detail}</p></div></div>}
     </>
   );
 }
-export function PhotoViewer({ file, index, count, select, start, pins }: {
-  file: Photo; index: number; count: number; select: (index: number) => void; start?: number; pins?: PhotoPin[];
+export function PhotoViewer({ file, index, count, select, start, pins, initialPin }: {
+  initialPin?: string; file: Photo; index: number; count: number; select: (index: number) => void; start?: number; pins?: PhotoPin[];
 }) {
   function move(delta: number) { select((index + delta + count) % count); }
   return <div className="photo-viewer" role="group" aria-label={`Evidence ${index + 1} of ${count}`} tabIndex={count > 1 ? 0 : undefined}
@@ -80,7 +96,7 @@ export function PhotoViewer({ file, index, count, select, start, pins }: {
         event.preventDefault(); move(event.key === "ArrowLeft" ? -1 : 1);
       }
     }}>
-    <Media key={file.src + "-" + index} file={file} start={start} pins={pins} />
+    <Media key={file.src + "-" + index + "-" + (initialPin ?? "")} initialPin={initialPin} file={file} start={start} pins={pins} />
     {count > 1 && <>
       <button type="button" className="photo-prev" aria-label="Previous photo" onClick={() => move(-1)}><ChevronLeft /></button>
       <button type="button" className="photo-next" aria-label="Next photo" onClick={() => move(1)}><ChevronRight /></button>
@@ -106,7 +122,7 @@ export function FindingRecord({
     <Modal title={finding.component} close={close} wide>
       {file && (
         <>
-          <PhotoViewer file={file} index={active} count={refs.length} select={setActive} start={ref.seconds ?? undefined} pins={photoPins(claim, file, ref.item - 1)} />
+          <PhotoViewer file={file} index={active} count={refs.length} select={setActive} start={ref.seconds ?? undefined} pins={photoPins(claim, file, ref.item - 1)} initialPin={"finding-" + index} />
           <div className="source-links" aria-label="Supporting evidence">
             {refs.map((r, n) => (
               <button
@@ -181,9 +197,11 @@ export function Evidence({
 })) {
   const [index, setIndex] = useState<number | null>(null),
     [expanded, setExpanded] = useState(false);
+  const [target, setTarget] = useState<{ finding: number; click: number }>();
+  const findings = !needsScopeReview(claim) ? claim.findings : [];
   const annotations = claim.photos.map((photo, n) => photoPins(claim, photo, n));
   const firstPinned = annotations.findIndex(pins => pins.length > 0);
-  const i = Math.min(index ?? Math.max(firstPinned, 0), claim.photos.length - 1),
+  const i = Math.min(index ?? (findings.length ? 0 : Math.max(firstPinned, 0)), claim.photos.length - 1),
     file = claim.photos[i];
   return (
     <section className="evidence-panel">
@@ -191,8 +209,9 @@ export function Evidence({
         <h2>{claim.photos.some((p) => p.kind === "video") ? "Evidence" : "Photos"}</h2>
         {firstPinned >= 0 && !annotations[i].length ? <button className="text-button" onClick={() => setIndex(firstPinned)}><MapPin size={15} />View photo pins</button> : <span>{claim.photos.length} files</span>}
       </div>
+      <div className={findings.length ? "finding-gallery" : undefined}>
       <div className="evidence-frame">
-        <PhotoViewer file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} />
+        <PhotoViewer key={target?.click} file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} initialPin={target && "finding-" + target.finding} />
         <div className="photo-caption">
           <span>
             <b>{String(i + 1).padStart(2, "0")}</b> {file.name}
@@ -204,6 +223,18 @@ export function Evidence({
             <Maximize2 size={15} />
           </button>
         </div>
+      </div>
+      {findings.length > 0 && <aside className="finding-index" aria-label="Damage findings">
+        <h3>Damage findings</h3>
+        {findings.map((finding, n) => {
+          const ref = bestEvidence(claim, n);
+          const photo = ref && claim.photos[ref.item - 1];
+          return <button key={n} disabled={!ref} aria-pressed={target?.finding === n && ref?.item === i + 1}
+            onClick={() => { if (ref) { setIndex(ref.item - 1); setTarget(old => ({ finding: n, click: (old?.click ?? 0) + 1 })); } }}>
+            <b>{n + 1}</b><span><strong>{finding.component}</strong><small>{photo?.name ?? "No linked photo"}</small></span>
+          </button>;
+        })}
+      </aside>}
       </div>
       <div className="filmstrip">
         {claim.photos.map((p, n) => (
@@ -240,7 +271,7 @@ export function Evidence({
       <EvidenceRequests claim={claim} onRespond={readOnly || locked ? undefined : onRespond} />
       {expanded && (
         <Modal title={file.name} wide close={() => setExpanded(false)}>
-          <PhotoViewer file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} />
+          <PhotoViewer key={target?.click} file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} initialPin={target && "finding-" + target.finding} />
         </Modal>
       )}
     </section>
