@@ -37,7 +37,7 @@ function seed(data: Pick<Claim, "id" | "title" | "vehicle" | "details" | "photos
     log: [{ title: "Claim received", detail: "6 evidence files received.", at: "2026-11-18T09:40:00Z" }],
   };
 }
-export const demoClaims: Claim[] = [
+const intakeSamples: Claim[] = [
   seed({
     id: "CLM-2084", title: "Front-end collision", vehicle: "2021 BMW 330i",
     demoScenario: "Standard repair",
@@ -63,6 +63,32 @@ export const demoClaims: Claim[] = [
     photos: photos("patrol", ["Front impact", "Wheel & arch"]),
   }),
 ];
+// Only the BMW starts before assessment. The other examples resume at a decision.
+export const demoClaims = intakeSamples.map((claim): Claim => {
+  if (claim.id === "CLM-2084") return claim;
+  const at = "2026-11-18T10:00:00Z";
+  const base = { ...claim, demoVersion: 4, decisionSource: "demo" as const, scopeReviewed: true };
+  if (claim.id === "CLM-2085") {
+    const message = "Please send a close-up of the right tail lamp and rear bumper mounting gap.";
+    return { ...base, stage: "missing", quality: "The rear detail photos are blurred.", gaps: [message],
+      decision: { choice: "missing", confidence: 0.94 }, request: message,
+      evidenceRequests: [{ id: "camry-rear-detail", created: at, recipient: "Policyholder", status: "awaiting", message, pins: [] }],
+      log: [{ title: "Evidence requested", detail: message, at }, { title: "More evidence needed", detail: "Rear detail photos are blurred.", at }, ...claim.log] };
+  }
+  if (claim.id === "CLM-2086") {
+    const text = "Glare obscures the reported mark on the right front door.";
+    return { ...base, stage: "uncertain", quality: text, decision: { choice: "uncertain", confidence: 0.58, reason: text },
+      flags: [{ text, photos: [5, 6] }], log: [{ title: "Evidence needs manual review", detail: text, at }, ...claim.log] };
+  }
+  const finding: Claim["findings"][number] = { component: "Front-left alignment", code: "other", operation: "Inspect", severity: "High",
+    damage: "Front-left wheel displaced within the arch", repair: "Inspect wheel and suspension alignment",
+    visualBasis: "inspection_indicator", accidentRelation: "related", inspectionEvidence: {item: 6, indicator: "wheel_displacement", observation: "The wheel sits off-center in the damaged arch."},
+    evidence: [{item: 6, box: [80, 50, 960, 950]}] };
+  return { ...base, stage: "review", quality: "The wheel position is visible. Physical inspection is required to determine the extent of damage.",
+    decision: {choice: "sufficient", confidence: 0.91}, findings: [finding],
+    lines: [{ component: finding.component, repair: finding.repair, parts: 0, labor: 0, source: "Supplier quote required", needsQuote: true }],
+    log: [{title: "Inspection required", detail: finding.damage, at}, ...claim.log] };
+});
 export const sample = demoClaims[0];
 
 function clearPresetReview(claim: Claim): Claim {
@@ -135,7 +161,12 @@ export function mergeDemoClaims(saved: Claim[]): Claim[] {
       JSON.stringify(c.lines) === JSON.stringify(original.lines) &&
       JSON.stringify(c.findings) === JSON.stringify(original.findings) &&
       JSON.stringify(c.log) === JSON.stringify(original.log);
-    return untouched ? sample : migrateClaim(c);
+    if (untouched) return sample;
+    const migrated = migrateClaim(c);
+    const prior = intakeSamples.find(item => item.id === c.id);
+    if (prior && JSON.stringify(claimSchema.parse(prior)) === JSON.stringify(claimSchema.parse(migrated)))
+      return demoClaims.find(item => item.id === c.id)!;
+    return migrated;
   });
   return [...merged, ...demoClaims.filter((d) => !merged.some((c) => c.id === d.id))];
 }

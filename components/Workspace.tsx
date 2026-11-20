@@ -39,7 +39,7 @@ import { Intake } from "./Intake";
 import { Activity, Review, SubmissionStatus } from "./Review";
 
 type Tab = "evidence" | "estimate" | "activity";
-type Overlay = "policyholder" | "new" | "add" | "more" | "changes" | "reset" | "reanalyze" | "flags" | null;
+type Overlay = "policyholder" | "walkthrough" | "delete" | "add" | "more" | "changes" | "reset" | "reanalyze" | "flags" | null;
 const navigation = [
   { id: "evidence", name: "Evidence" },
   { id: "estimate", name: "Repair estimate" },
@@ -398,7 +398,7 @@ export default function Workspace({ example }: { example?: Claim }) {
       }} /></div></header>
       <div className="body">
         {dashboard && error && <p className="error banner" role="alert">{error}</p>}
-        {dashboard ? <Dashboard filter={queueFilter} setFilter={setQueueFilter} query={queueQuery} setQuery={setQueueQuery} claims={claims} ready={ready} canCreate={role === "agent"} create={() => open("new")} reset={() => open("reset")} select={openDashboardClaim} /> : <>
+        {dashboard ? <Dashboard filter={queueFilter} setFilter={setQueueFilter} query={queueQuery} setQuery={setQueueQuery} claims={claims} ready={ready} isAgent={role === "agent"} remove={claim => { setActive(claim.id); open("delete"); }} walkthrough={() => open("walkthrough")} reset={() => open("reset")} select={openDashboardClaim} /> : <>
 
         <main id="main">
           <div className="claim-toolbar">
@@ -494,9 +494,9 @@ export default function Workspace({ example }: { example?: Claim }) {
           close={() => setSelectedFinding(null)}
         />
       )}
-      {(overlay === "new" || overlay === "add" || overlay === "policyholder") && (
+      {(overlay === "add" || overlay === "policyholder") && (
         <Intake
-          existing={overlay === "new" ? undefined : c}
+          existing={c}
           policyholder={overlay === "policyholder"}
           requestId={responseId}
           close={() => open(null)}
@@ -553,6 +553,42 @@ export default function Workspace({ example }: { example?: Claim }) {
           </div>
         </Modal>
       )}
+      {overlay === "walkthrough" && <Modal title="Demo walkthrough" close={() => open(null)}>
+        <ol className="list-decimal space-y-3 pl-5">
+          <li>Open the BMW claim and select <strong>Assess evidence</strong>.</li>
+          <li>Choose a damage finding to see its supporting photo, then review the repair estimate and pricing.</li>
+          <li>Select <strong>Submit estimate for approval</strong>. Switch to the senior adjuster, review the submission, choose a repair shop, and authorize the repairs.</li>
+          <li>Download the authorized PDF to see the recorded decision and signature.</li>
+        </ol>
+        <div className="modal-actions"><button className="secondary" onClick={() => open(null)}>Close</button>
+          {claims.some(item => item.id === sample.id) && <button className="primary" onClick={() => {
+            const demo = claims.find(item => item.id === sample.id);
+            open(null);
+            if (demo) openDashboardClaim(demo);
+          }}>Open BMW claim</button>}
+        </div>
+      </Modal>}
+      {overlay === "delete" && role === "agent" && !c.sample && <Modal title="Delete this claim?" close={() => open(null)}>
+        <p>{c.vehicle} · {c.id}</p>
+        <p>Deleting this claim removes its evidence, estimate, and activity from this browser.</p>
+        <div className="modal-actions"><button className="secondary" onClick={() => open(null)}>Cancel</button>
+          <button className="primary" onClick={async () => {
+            try {
+              const saved = await changeWorkspace(workspaceKey, workspace => {
+                const current = workspace.claims.find(item => item.id === c.id);
+                if (current && (current.sample || !sameClaimHistory(current, c))) return workspace;
+                const remaining = workspace.claims.filter(item => item.id !== c.id);
+                if (!remaining.length) return workspace;
+                return { ...workspace, claims: remaining, active: workspace.active === c.id ? remaining[0].id : workspace.active };
+              });
+              setClaims(saved.claims);
+              setActive(saved.active);
+              setError(saved.claims.some(item => item.id === c.id) ? "The claim changed. Review it before deleting." : "");
+            } catch { setError("Your browser could not delete this claim. Try again."); }
+            open(null);
+          }}>Delete claim</button>
+        </div>
+      </Modal>}
       {overlay === "reset" && (
         <Modal title="Reset the four sample claims?" close={() => open(null)}>
           <p>Edits to these four claims will be cleared. Your uploaded claims stay saved.</p>

@@ -8,7 +8,7 @@ async function stored(page) { return page.evaluate(() => new Promise(resolve => 
  try {
  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
  const errors = []; page.on('pageerror', e => errors.push(e.message));
- await page.goto(url); await page.getByRole('button', { name: 'Add demo case', exact: true }).waitFor();
+ await page.goto(url); await page.getByRole('button', { name: 'Demo walkthrough', exact: true }).waitFor();
  await page.waitForFunction(() => document.querySelectorAll('.claims-table tbody tr').length === 4);
  await page.screenshot({path:'/tmp/claimlens-dashboard.png',fullPage:true});
  await page.getByLabel('Search claims').fill('Camry'); assert.equal(await page.locator('.claims-table tbody tr').count(),1);

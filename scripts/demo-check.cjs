@@ -57,7 +57,7 @@ async function untilStored(p, predicate) {
         assert(r.headers()['content-type'].includes('image/'));
       }
     }
-    assert.deepEqual(original.claims.map(c => c.stage), ['intake', 'intake', 'intake', 'intake']);
+    assert.deepEqual(original.claims.map(c => c.stage), ['intake', 'missing', 'uncertain', 'review']);
     let reviewCalls = 0;
     await p.route('**/api/analyze', route => {
       if (route.request().postDataJSON().step === 'pins') return route.fulfill({ json: { pins: [] } });
@@ -68,7 +68,7 @@ async function untilStored(p, predicate) {
         ? { quality: { summary: preset.quality, gaps: preset.gaps }, decision: preset.decision }
         : { findings: preset.findings, lines: preset.lines } });
     });
-    for (const claim of original.claims) {
+    for (const claim of original.claims.filter(c => c.stage === "intake")) {
       await choose(p, claim.id);
       assert.equal((await p.locator('.case-state').innerText()).trim(), 'New claim');
       assert.equal(await p.locator('.action-note,.scope-notice').count(), 0);
@@ -79,7 +79,7 @@ async function untilStored(p, predicate) {
       assert.equal(await p.getByRole('button', { name: 'Evidence 6', exact: true }).getAttribute('aria-current'), 'page');
     }
     assert.equal(reviewCalls, 0, 'opening claims, estimates and workflow must not review photos');
-    for (const claim of original.claims) {
+    for (const claim of original.claims.filter(c => c.stage === "intake")) {
       await choose(p, claim.id);
       await p.getByRole('button', { name: 'Assess evidence', exact: true }).click();
       const flow = p.getByRole('region', { name: 'Claim review progress' });
@@ -88,7 +88,7 @@ async function untilStored(p, predicate) {
       assert.equal(await p.locator('main .primary:enabled').count(), 1);
       await untilStored(p, d => d.claims.find(c => c.id === claim.id).decisionSource === 'jev');
     }
-    assert.equal(reviewCalls, 6);
+    assert.equal(reviewCalls, 2);
 
     await p.reload(); await ready(p);
     assert.deepEqual((await stored(p)).claims.map(c => c.stage), ['review', 'missing', 'uncertain', 'review']);
@@ -109,14 +109,9 @@ async function untilStored(p, predicate) {
     assert((await p.locator('.photo-caption').innerText()).includes('Fender close-up'));
 
     await choose(p, 'CLM-2085');
-    await p.getByRole('heading', { name: 'More evidence needed', exact: true }).waitFor();
-    await p.getByRole('button', {name: 'Request additional evidence', exact: true}).first().click();
-    const composer = p.getByRole('dialog');
-    await composer.getByLabel('Request notes').fill('Please send a close-up of the right tail lamp.');
-    await composer.getByRole('button', {name:'Send evidence request'}).click();
     await p.getByRole('button', {name:'View as policyholder'}).click();
     const portal = p.getByRole('dialog', {name:'Your evidence request'});
-    await portal.getByText('Please send a close-up of the right tail lamp.', {exact:true}).waitFor();
+    await portal.getByText('Please send a close-up of the right tail lamp and rear bumper mounting gap.', {exact:true}).waitFor();
     await portal.locator('input[type=file]').setInputFiles('public/evidence/camry/5.jpg');
     await portal.getByRole('button', {name:'Send evidence to agent'}).click();
     await p.getByRole('heading', {name:'Updated evidence ready for assessment'}).waitFor();
@@ -232,12 +227,7 @@ async function untilStored(p, predicate) {
     await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Review estimate', exact: true }).click();
     await p.getByText('Test bumper', { exact: true }).waitFor(); await ready(p);
     assert((await p.locator('.estimate-total').innerText()).includes('4,368'));
-    verdict = 'missing'; await choose(p, 'CLM-2085');
-    await p.getByRole('button', { name: 'Assess evidence', exact: true }).click();
-    await p.getByRole('region', { name: 'Claim review progress' }).getByText('Need a clear detail.', { exact: true }).waitFor(); await ready(p);
-    verdict = 'uncertain'; await choose(p, 'CLM-2086');
-    await p.getByRole('button', { name: 'Assess evidence', exact: true }).click();
-    await ready(p);
+    await choose(p, 'CLM-2086');
     await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Check flagged evidence', exact: true }).click();
     await p.getByRole('button', { name: 'Accept evidence & assess damage' }).click();
     await p.getByRole('region', { name: 'Claim review progress' }).getByRole('button', { name: 'Review estimate', exact: true }).click();
@@ -262,6 +252,18 @@ async function untilStored(p, predicate) {
     assert.equal((await stored(migration)).claims[0].lines[0].parts, 364);
     await migration.getByRole('button', { name: 'Reset sample claims' }).click(); await migration.getByRole('dialog').getByRole('button', { name: 'Reset sample claims', exact: true }).click();
     assert((await untilStored(migration, d => d.active === 'CLM-2084')).claims.some(c => c.title === 'Keep my claim'));
+
+    const remove = migration.getByRole('button', {name:'Delete claim CLM-UPLOADED'});
+    await remove.click();
+    await migration.getByRole('button', {name:'Cancel', exact:true}).click();
+    await remove.click();
+    await migration.getByRole('dialog').getByRole('button', {name:'Delete claim', exact:true}).click();
+    await untilStored(migration, data => data.claims.length === 4 && !data.claims.some(c => c.id === custom.id));
+    await migration.reload(); await ready(migration);
+    assert.equal(await remove.count(), 0);
+    await migration.getByRole('button', {name:'Demo walkthrough'}).click();
+    await migration.getByRole('button', {name:'Open BMW claim'}).click();
+    await migration.getByRole('heading', {name:'2021 BMW 330i'}).waitFor();
 
     const m = await browser.newPage({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
     await m.goto(url); await ready(m);

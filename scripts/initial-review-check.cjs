@@ -28,9 +28,11 @@ function unreviewed(claim) {
   assert(!claim.log.some(event => event.title === 'Demo assessment loaded'));
   assert.equal(claim.photos.length, 6);
 }
-demoClaims.forEach(unreviewed);
+demoClaims.forEach(c => claimSchema.parse(c));
+unreviewed(demoClaims[0]);
+assert.deepEqual(demoClaims.map(c => c.stage), ["intake","missing","uncertain","review"]);
 const migrated = mergeDemoClaims(structuredClone(presets));
-migrated.forEach(unreviewed);
+unreviewed(migrated[0]);
 assert(migrated.find(claim => claim.id === 'CLM-2086').photos.every(photo => photo.src.includes('lexus-reflections-v2')));
 assert.deepEqual(mergeDemoClaims(migrated), migrated, 'migration must be idempotent');
 const legacy = claimSchema.parse(load('lib/legacy-sample.ts').sample);
@@ -40,7 +42,10 @@ const upgradedDescription = mergeDemoClaims([editedDescription])[0];
 unreviewed(upgradedDescription);
 assert.equal(upgradedDescription.accidentDescription, editedDescription.accidentDescription);
 assert(upgradedDescription.log.some(event => event.title === 'Accident description updated'));
-for (const original of presets) {
+for (const preset of presets) {
+  // Use a confirmed quote for preservation checks, independent of retired generic rates.
+  const original = { ...preset, lines: preset.lines.map(line => line.catalogueId?.startsWith("other:")
+    ? { ...line, source: "Workshop Q-48", catalogueId: undefined, quoteConfirmedAt: preset.created } : line) };
   const live = { ...original, decisionSource: 'jev', log: [{ title: 'Evidence decision recorded', detail: 'Live result', at: '2026-11-19T00:00:00Z' }, ...original.log] };
   assert.deepEqual(mergeDemoClaims([live])[0], live, 'keep completed reviews');
   const edited = { ...original, log: [{ title: 'Estimate updated', detail: 'Adjusted price', at: '2026-11-19T00:00:00Z' }, ...original.log] };

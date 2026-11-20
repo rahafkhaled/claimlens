@@ -7,8 +7,8 @@ const { chromium } = require("playwright-core");
     for (const [width, height] of [[1440, 900], [390, 844], [844, 390]]) {
       const page = await browser.newPage({ viewport: { width, height } });
       await page.goto(process.env.CLAIMLENS_URL || "http://localhost:3185/");
-      const create = page.getByRole("button", { name: "Add demo case" });
-      await create.click();
+      const walkthrough = page.getByRole("button", { name: "Demo walkthrough" });
+      await walkthrough.click();
       const dialog = page.getByRole("dialog");
       await dialog.evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)));
       const box = await dialog.boundingBox();
@@ -25,7 +25,7 @@ const { chromium } = require("playwright-core");
       }
       await page.keyboard.press("Escape");
       await dialog.waitFor({ state: "hidden" });
-      assert(await create.evaluate(el => el === document.activeElement));
+      assert(await walkthrough.evaluate(el => el === document.activeElement));
       const action = page.locator(".claims-table .next-action").first();
       const actionBox = await action.boundingBox();
       assert(actionBox.x >= 0 && actionBox.x + actionBox.width <= width, "Queue action fits screen");
@@ -36,7 +36,7 @@ const { chromium } = require("playwright-core");
         quality: { summary: "A lamp close-up is missing.", gaps: ["Provide a clear right tail lamp close-up."] },
         decision: { choice: "missing", confidence: .96 },
       } }));
-      await page.getByRole("button", {name: "2022 Toyota Camry"}).click();
+      await page.getByRole("button", {name: "2021 BMW 330i"}).click();
       await page.getByRole("button", {name: "Assess evidence", exact: true}).click();
       await page.getByRole("button", {name: "Review flagged evidence", exact: true}).click();
       await page.getByRole("button", {name: "Photo pin 1: Flagged evidence"}).click();
