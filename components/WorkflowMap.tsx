@@ -1,7 +1,7 @@
 "use client";
 import { Check, Circle, LoaderCircle, ScanLine, GitBranch, Camera, Calculator, ClipboardCheck, ShieldCheck, FileCheck2, ArrowRight } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import { type Claim, requiresInspection, needsScopeReview } from "@/lib/claims";
+import { type Claim, inspectionPending, needsScopeReview } from "@/lib/claims";
 import type { ReviewRun, ReviewStep } from "@/lib/review-progress";
 
 
@@ -34,7 +34,7 @@ export function WorkflowMap({ claim, run }: {
     if (step === "quality" || step === "decision") return claim.decision ? "done" : "waiting";
     return claim.lines.length || claim.findings.length ? "done" : "waiting";
   };
-  const inspection = !running && !failed && !stale && claim.findings.some((f, i) => requiresInspection(f) && !claim.lines[i]?.inspectionNote?.trim());
+  const inspection = !running && !failed && !stale && claim.findings.some((f, i) => inspectionPending(f, claim.lines[i]));
   const quotes = !running && !failed && !stale && claim.lines.some(l => l.needsQuote);
   const final = stage === "authorized";
   const reviewState: State = final || stage === "senior" ? "done" : stage === "review" || stage === "corrections" ? "active" : "waiting";
@@ -46,7 +46,7 @@ export function WorkflowMap({ claim, run }: {
         <span className="review-flow-kicker">{claim.id} / {run ? "Live analysis" : stale ? "Analysis required" : claim.stage === "intake" ? "Awaiting analysis" : claim.decision ? "Saved analysis" : "Claim analysis"}</span>
         <span role="status" className="review-flow-status">{run ? labels[run.phase] : final ? "Authorized" : "Current progress"}</span>
       </div>
-      <div className="review-evidence-rail" data-scanning={running && (phase === "loading" || phase === "quality" || phase === "damage")} aria-label="Evidence being reviewed">
+      <div className="review-evidence-rail"  aria-label="Evidence being reviewed">
         {claim.photos.slice(0, 6).map((photo, index) => <div className="review-evidence-frame" key={index} style={{ "--file-index": index } as CSSProperties}><img src={photo.poster ?? photo.src} alt={photo.name} /></div>)}
         <div className="review-evidence-caption"><strong>{claim.photos.length} evidence files</strong><small>Accident scope review</small></div>
       </div>

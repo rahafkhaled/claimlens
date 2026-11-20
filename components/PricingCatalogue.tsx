@@ -2,14 +2,14 @@
 import { useState } from "react";
 import { catalogue, laborRateQar, partLabels, lineAmount, bodyPartsReference } from "@/lib/catalogue";
 import { money } from "@/lib/claims";
-import { Modal } from "./ui";
 
-export function PricingCatalogue({ close }: { close: () => void }) {
-  const [query, setQuery] = useState(""), [filter, setFilter] = useState("all");
+
+export function PricingCatalogue({ entry }: { entry?: string }) {
+  const [query, setQuery] = useState(entry && catalogue.some(row => row.id === entry) ? entry : ""), [filter, setFilter] = useState("all");
   const rows = catalogue.filter(row =>
-    `${partLabels[row.code]} ${row.operation}`.toLowerCase().includes(query.trim().toLowerCase()) &&
+    `${row.id} ${partLabels[row.code]} ${row.operation}`.toLowerCase().includes(query.trim().toLowerCase()) &&
     (filter === "all" || row.operation === filter));
-  return <Modal title="Pricing catalogue" close={close} wide>
+  return <section>
     <div className="catalogue-tools">
       <input aria-label="Search catalogue" placeholder="Find a part or operation…" value={query} onChange={e => setQuery(e.target.value)} />
       <select aria-label="Catalogue operation" value={filter} onChange={e => setFilter(e.target.value)}>
@@ -30,7 +30,7 @@ export function PricingCatalogue({ close }: { close: () => void }) {
     </table></div>
     {rows.length === 0 && <p>No matching entries.</p>}
     <details className="catalogue-provenance"><summary>Catalogue basis</summary>
-      <p>Body-part coverage follows the earlier <a href={bodyPartsReference} target="_blank" rel="noreferrer">car-parts research</a>. That source defines components, not prices. All amounts here are illustrative prototype allowances; no supplier quote is implied. Every supported operation has a mock allowance, including inspection and calibration.</p>
+      <p>Body-part coverage follows the earlier <a href={bodyPartsReference} target="_blank" rel="noreferrer">car-parts research</a>. That source defines components, not prices. All amounts here are illustrative prototype allowances; no supplier quote is implied. Repairs without a matching part and operation require a supplier quote.</p>
     </details>
-  </Modal>;
+  </section>;
 }

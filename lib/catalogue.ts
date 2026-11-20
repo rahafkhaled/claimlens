@@ -63,9 +63,9 @@ const existingAllowances: CatalogueEntry[] = [
   allowance("side_glass", "Replace", 728, 2),
   allowance("tire", "Replace", 546, 0.5),
 ];
-// Explicit mock budgets for every supported component/operation combination.
+// Explicit mock budgets for named components.
 // Replace parts/hours, repair materials/hours, refinish materials/hours, inspection hours.
-const budgets: Record<Finding["code"], [number, number, number, number, number, number, number]> = {
+const budgets: Record<Exclude<Finding["code"], "other">, [number, number, number, number, number, number, number]> = {
   bumper: [2620.8, 8, 309.4, 4, 345.8, 4, 1],
   fender: [1619.8, 6, 200.2, 4, 309.4, 4, 1],
   headlamp: [4440.8, 4, 364, 2, 145.6, 1, .5],
@@ -89,7 +89,6 @@ const budgets: Record<Finding["code"], [number, number, number, number, number, 
   glass: [1237.6, 3, 145.6, 1, 109.2, 1, .5],
   wheel: [1419.6, 2, 218.4, 2, 182, 1.5, 1],
   paint: [546, 6, 254.8, 4, 345.8, 6, .5],
-  other: [728, 3, 182, 2, 182, 2, 1],
 };
 export const catalogue: CatalogueEntry[] = Object.entries(budgets).flatMap(([part, values]) => {
   const code = part as Finding["code"];
@@ -105,10 +104,11 @@ export const catalogue: CatalogueEntry[] = Object.entries(budgets).flatMap(([par
   });
 });
 export function mockPriceLine(finding: Finding): Line {
-  const entry = catalogue.find(row => row.code === finding.code && row.operation === (finding.operation ?? "Inspect"))!;
+  const entry = catalogue.find(row => row.code === finding.code && row.operation === (finding.operation ?? "Inspect"));
+  if (!entry || entry.parts === null || entry.hours === null) return { component: finding.component, repair: finding.repair, parts: 0, labor: 0, needsQuote: true, source: "Supplier quote required" };
   return {
     component: finding.component, repair: finding.repair,
-    parts: entry.parts!, labor: Math.round(entry.hours! * laborRateQar * 100) / 100,
+    parts: entry.parts, labor: Math.round(entry.hours * laborRateQar * 100) / 100,
     catalogueId: entry.id, needsQuote: false,
     source: `${entry.basis} · ${catalogueVersion} · ${entry.hours} h × QAR ${laborRateQar.toFixed(2)}`,
   };

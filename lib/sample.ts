@@ -1,7 +1,7 @@
 import { type Claim, type Photo, addEvent, claimSchema } from "./claims";
 import { sample as legacySample, restoreSampleReferences } from "./legacy-sample";
 
-import { mockPriceLine } from "./catalogue";
+
 
 const views = ["Front-left", "Front-right", "Rear-left", "Rear-right"];
 function photos(folder: string, details: [string, string]): Photo[] {
@@ -95,17 +95,6 @@ function clearPresetReview(claim: Claim): Claim {
   };
 }
 
-function fillMockPrices(claim: Claim): Claim {
-  if (claim.stage === "authorized") return claim;
-  let changed = false;
-  const lines = claim.lines.map((line, i) => {
-    if (!line.needsQuote || line.parts !== 0 || line.labor !== 0 || !claim.findings[i]) return line;
-    changed = true;
-    return { ...line, ...mockPriceLine(claim.findings[i]) };
-  });
-  return changed ? addEvent(claim, "Mock catalogue updated", "Unpriced items filled with QAR demo allowances.", { lines }) : claim;
-}
-
 export function migrateClaim(claim: Claim): Claim {
   let restored = restoreSampleReferences(clearPresetReview(claim));
   // Replace only the unused synthetic Lexus evidence. Existing assessments and
@@ -120,11 +109,21 @@ export function migrateClaim(claim: Claim): Claim {
     const demo = demoClaims.find(item => item.id === restored.id && item.details === restored.details);
     restored = { ...restored, accidentDescription: restored.sample && demo ? demo.accidentDescription : restored.details };
   }
-  if (restored.currency === "QAR") return fillMockPrices(restored);
-  return fillMockPrices(addEvent(restored, "Currency changed to QAR", "Existing USD amounts converted at 3.64 QAR per USD; demo rates only.", {
+  if (restored.stage !== "authorized") {
+    const obsolete = restored.lines.filter(line => line.catalogueId?.startsWith("other:") &&
+      !line.needsQuote && !line.quoteConfirmedAt && line.source.startsWith("Added demo allowance"));
+    if (obsolete.length) restored = addEvent(restored, "Supplier quote required",
+      obsolete.map(line => line.component).join(", "), {
+        lines: restored.lines.map(line => obsolete.includes(line)
+          ? { ...line, parts: 0, labor: 0, catalogueId: undefined, source: "Supplier quote required", needsQuote: true }
+          : line),
+      });
+  }
+  if (restored.currency === "QAR") return restored;
+  return addEvent(restored, "Currency changed to QAR", "Existing USD amounts converted at 3.64 QAR per USD; demo rates only.", {
     currency: "QAR",
     lines: restored.lines.map((l) => ({ ...l, parts: Math.round(l.parts * 364) / 100, labor: Math.round(l.labor * 364) / 100, source: l.source + " · converted to QAR" })),
-  }));
+  });
 }
 export function mergeDemoClaims(saved: Claim[]): Claim[] {
   const original = claimSchema.parse(legacySample);

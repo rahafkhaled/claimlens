@@ -32,7 +32,7 @@ const assert=require('node:assert/strict');
   await flow.getByRole('button',{name:'Check flagged evidence',exact:true}).click();
   assert.equal(damageCalls,1);
   assert.equal((await page.locator('.case-state').innerText()).trim(),'Agent review');
-  assert.equal(await page.getByRole('button',{name:'Submit for approval',exact:true}).count(),0);
+  assert.equal(await page.getByRole('button',{name:'Submit estimate for approval',exact:true}).count(),0);
   assert((await page.locator('.action-note').innerText()).includes('No accident-related repairs confirmed'));
   assert(!(await page.locator('.action-note').innerText()).includes('Provide a close-up'));
   console.log('PASS: guarded route and raw model audit in live/saved workflow, agent-only continuation, empty findings do not fabricate missing-photo requests.');

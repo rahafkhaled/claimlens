@@ -6,10 +6,12 @@ import { readPhotos } from "@/lib/photos";
 import { Modal } from "./ui";
 export function Intake({
   existing,
+  requestId,
   close,
   save,
 }: {
   existing?: Claim;
+  requestId?: string;
   close: () => void;
   save: (c: Claim) => void;
 }) {
@@ -22,7 +24,7 @@ export function Intake({
     [vehicle, setVehicle] = useState(""),
     [details, setDetails] = useState("");
   const pendingRequests = existing?.evidenceRequests?.filter(request => request.status === "awaiting") ?? [];
-  const [responseIds, setResponseIds] = useState<string[]>([]);
+  const [responseIds, setResponseIds] = useState<string[]>(requestId ? [requestId] : pendingRequests.length === 1 ? [pendingRequests[0].id] : []);
   const input = useRef<HTMLInputElement>(null);
   async function add(files: FileList) {
     setError("");
@@ -39,7 +41,7 @@ export function Intake({
   }
   return (
     <Modal
-      title={existing ? "Record received evidence" : "Create claim"}
+      title={existing ? pendingRequests.length ? "Respond to evidence request" : "Add evidence" : "Add demo case"}
       close={close}
     >
       <form
@@ -65,6 +67,7 @@ export function Intake({
             );
             return;
           }
+          if (pendingRequests.length && !responseIds.length) { setError("Select the evidence request this response addresses."); return; }
           const c: Claim = existing
             ? {
                 ...existing,
@@ -112,22 +115,16 @@ export function Intake({
             addEvent(
               c,
               existing ? "Additional evidence received" : "Claim received",
-              photos.length
-                ? photos.length + " evidence file(s) added."
-                : "Inspection details updated.",
+              [photos.length ? photos.length + " evidence file(s) added." : "Inspection details updated.",
+               existing && (outstanding.length ? "Awaiting remaining policyholder responses." : "Updated evidence ready for assessment.")].filter(Boolean).join(" "),
               {
-                stage: outstanding.length ? "missing" : "intake",
+                stage: existing ? existing.stage : "intake",
                 evidenceRequests,
                 scopeNeedsReview: true,
-                excludedFindings: [],
-                quality: "",
-                gaps: [],
-                decision: null,
-                decisionSource: undefined,
-                findings: [],
-                lines: [],
+                evidenceUpdated: !!existing,
+                authorization: undefined,
                 request: outstanding.map(request => [request.message, ...request.pins.map(pin => pin.comment)].filter(Boolean).join("\n")).join("\n"),
-                override: false,
+
               },
             ),
           );
@@ -160,7 +157,7 @@ export function Intake({
         )}
         {existing?.request && <p className="notice">{existing.request}</p>}
         {pendingRequests.length > 0 && <fieldset className="response-requests"><legend>This response addresses</legend>
-          {pendingRequests.map(request => <label key={request.id}><input type="checkbox" checked={responseIds.includes(request.id)} onChange={event => setResponseIds(old => event.target.checked ? [...old, request.id] : old.filter(id => id !== request.id))} /><span>{request.recipient} · {request.message || request.pins[0]?.comment}</span></label>)}
+          {pendingRequests.map(request => <label key={request.id}><input type="checkbox" checked={responseIds.includes(request.id)} onChange={event => setResponseIds(old => event.target.checked ? [...old, request.id] : old.filter(id => id !== request.id))} /><span>Request {(existing?.evidenceRequests?.findIndex(item => item.id === request.id) ?? 0) + 1} · {request.recipient} · {[request.message, ...request.pins.map(pin => pin.comment)].filter(Boolean).join(" · ")}</span></label>)}
         </fieldset>}
         <label>
           {existing ? "Response / inspection notes" : "Accident description"}
@@ -174,7 +171,7 @@ export function Intake({
             placeholder="Describe what happened, the impact area and the damage being claimed."
           />
         </label>
-        <div className="field-label">Evidence</div>
+        <div className="field-label">{existing ? "Existing evidence" : "Evidence"}</div>
         {existing && (
           <div className="retained">
             {retained.map((p, i) => (
@@ -193,6 +190,7 @@ export function Intake({
             ))}
           </div>
         )}
+        {existing && <p className="response-help">New response evidence · Add files below. Saving a response does not confirm sufficiency; assess the updated evidence next.</p>}
         <button
           disabled={filesBusy}
           type="button"
@@ -250,7 +248,7 @@ export function Intake({
             Cancel
           </button>
           <button className="primary" disabled={filesBusy}>
-            {existing ? "Save received evidence" : "Create claim"}
+            {existing ? pendingRequests.length ? "Save response" : "Save evidence" : "Add demo case"}
             <ArrowRight size={15} />
           </button>
         </div>

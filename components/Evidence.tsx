@@ -1,22 +1,42 @@
 "use client";
-import { useRef, useState, type ReactNode } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
-import { Maximize2, Plus, Play, ScanLine, LoaderCircle } from "lucide-react";
-import { type Claim, type Photo, money } from "@/lib/claims";
+import { useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, MapPin, Maximize2, Plus, Play, ScanLine } from "lucide-react";
+import { type Claim, type Photo, type EvidencePin, needsScopeReview, money } from "@/lib/claims";
+import { pinLabel } from "@/lib/photo-pins";
 import { Modal } from "./ui";
 import { EvidenceRequests } from "./EvidenceRequest";
-import { EvidenceScan } from "./EvidenceScan";
+import { PricingSource } from "./PricingSource";
 
-gsap.registerPlugin(useGSAP);
+
 
 const clock = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
   String(Math.floor(seconds % 60)).padStart(2, "0");
-function Media({ file, start }: { file: Photo; start?: number }) {
+type PhotoPin = { source?: EvidencePin["source"]; id: string; x: number; y: number; title: string; detail: string };
+
+export function photoPins(claim: Claim, photo: Photo, index: number): PhotoPin[] {
+  if (photo.kind === "video") return [];
+  const requests: PhotoPin[] = (claim.evidenceRequests ?? []).flatMap(request =>
+    request.pins.filter(pin => pin.photoId === photo.id).map(pin => ({
+      ...pin, title: "Evidence request", detail: pin.comment,
+    }))
+  );
+  if (needsScopeReview(claim)) return requests;
+  return requests.concat(claim.findings.flatMap((finding, n) => {
+    const ref = finding.evidence?.find(ref => ref.item === index + 1);
+    if (!ref) return [];
+    const [top, left, bottom, right] = ref.box;
+    return [{ id: "finding-" + n, source: "ai" as const,
+      x: (left + right) / 20, y: (top + bottom) / 20, title: finding.component, detail: finding.damage }];
+  }));
+}
+function Media({ file, start, pins }: { file: Photo; start?: number; pins?: PhotoPin[] }) {
+  const [selected, setSelected] = useState<string>();
+  const active = pins?.find(pin => pin.id === selected) ?? pins?.[0];
   const video = useRef<HTMLVideoElement>(null);
   return (
+    <>
     <div className="media-stage">
       <div className="media-sheet">
         {file.kind === "video" ? (
@@ -40,9 +60,32 @@ function Media({ file, start }: { file: Photo; start?: number }) {
         ) : (
           <img className="asset" src={file.src} alt={file.name} />
         )}
+        {pins?.map((pin, n) => <button key={pin.id} type="button" className="evidence-pin gallery-pin" data-source={pin.source} title={pinLabel(pin.source)}
+          style={{ left: pin.x + "%", top: pin.y + "%" }} aria-label={`Photo pin ${n + 1}: ${pin.title}`}
+          aria-pressed={active?.id === pin.id} onClick={() => setSelected(pin.id)}><span>{n + 1}</span></button>)}
       </div>
     </div>
+    {active && <div className="gallery-pin-note" aria-live="polite"><MapPin size={16} /><div><strong>{pinLabel(active.source)} · {active.title}</strong><p>{active.detail}</p></div></div>}
+    </>
   );
+}
+export function PhotoViewer({ file, index, count, select, start, pins }: {
+  file: Photo; index: number; count: number; select: (index: number) => void; start?: number; pins?: PhotoPin[];
+}) {
+  function move(delta: number) { select((index + delta + count) % count); }
+  return <div className="photo-viewer" role="group" aria-label={`Evidence ${index + 1} of ${count}`} tabIndex={count > 1 ? 0 : undefined}
+    onKeyDown={event => {
+      if (count < 2 || (event.target as HTMLElement).closest("video")) return;
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault(); move(event.key === "ArrowLeft" ? -1 : 1);
+      }
+    }}>
+    <Media key={file.src + "-" + index} file={file} start={start} pins={pins} />
+    {count > 1 && <>
+      <button type="button" className="photo-prev" aria-label="Previous photo" onClick={() => move(-1)}><ChevronLeft /></button>
+      <button type="button" className="photo-next" aria-label="Next photo" onClick={() => move(1)}><ChevronRight /></button>
+    </>}
+  </div>;
 }
 export function FindingRecord({
   claim,
@@ -63,11 +106,7 @@ export function FindingRecord({
     <Modal title={finding.component} close={close} wide>
       {file && (
         <>
-          <Media
-            key={file.src + "-" + active}
-            file={file}
-            start={ref.seconds ?? undefined}
-          />
+          <PhotoViewer file={file} index={active} count={refs.length} select={setActive} start={ref.seconds ?? undefined} pins={photoPins(claim, file, ref.item - 1)} />
           <div className="source-links" aria-label="Supporting evidence">
             {refs.map((r, n) => (
               <button
@@ -108,12 +147,12 @@ export function FindingRecord({
             <div>
               <dt>Parts / labor</dt>
               <dd>
-                {money(line.parts)} / {money(line.labor)}
+                {line.needsQuote ? "Awaiting supplier quote" : money(line.parts) + " / " + money(line.labor)}
               </dd>
             </div>
             <div>
               <dt>Pricing source</dt>
-              <dd>{line.source}</dd>
+              <dd><PricingSource line={line} /></dd>
             </div>
           </>
         )}
@@ -124,6 +163,7 @@ export function FindingRecord({
 export function Evidence({
   claim,
   onAdd,
+  onRespond,
   onReview,
   onRequest,
   locked = false,
@@ -131,65 +171,28 @@ export function Evidence({
   readOnly = false,
   primaryAnalysis = true,
   outcomeVisible = false,
-  analysisPanel,
-}: {
-  claim: Claim;
+}: { claim: Claim; onRespond?: (id: string) => void; locked?: boolean; reviewing?: boolean; primaryAnalysis?: boolean; outcomeVisible?: boolean } & ({
+  readOnly: true; onAdd?: never; onReview?: never; onRequest?: never;
+} | {
+  readOnly?: boolean;
   onAdd: () => void;
   onReview: () => void;
   onRequest: (index: number) => void;
-  locked?: boolean;
-  reviewing?: boolean;
-  readOnly?: boolean;
-  primaryAnalysis?: boolean;
-  outcomeVisible?: boolean;
-  analysisPanel?: ReactNode;
-}) {
-  const [index, setIndex] = useState(0),
+})) {
+  const [index, setIndex] = useState<number | null>(null),
     [expanded, setExpanded] = useState(false);
-  const i = Math.min(index, claim.photos.length - 1),
+  const annotations = claim.photos.map((photo, n) => photoPins(claim, photo, n));
+  const firstPinned = annotations.findIndex(pins => pins.length > 0);
+  const i = Math.min(index ?? Math.max(firstPinned, 0), claim.photos.length - 1),
     file = claim.photos[i];
-  const dock = useRef<HTMLDivElement>(null);
-  const reviewRequested = useRef(false);
-  const hasPanel = !!analysisPanel;
-  function startReview() {
-    reviewRequested.current = true;
-    onReview();
-  }
-  useGSAP(() => {
-    const media = gsap.matchMedia();
-    media.add({ reduce: "(prefers-reduced-motion: reduce)", motion: "(prefers-reduced-motion: no-preference)" }, context => {
-      const reduce = context.conditions?.reduce;
-      const idle = dock.current?.querySelector<HTMLElement>(".analysis-idle");
-      const live = dock.current?.querySelector<HTMLElement>(".analysis-live");
-      if (!idle || !live) return;
-      const transferFocus = hasPanel && (reviewRequested.current || idle.contains(document.activeElement));
-      reviewRequested.current = false;
-      gsap.set(hasPanel ? idle : live, { autoAlpha: 0 });
-      gsap.fromTo(hasPanel ? live : idle, { autoAlpha: reduce ? 1 : 0, y: reduce ? 0 : 6 }, {
-        autoAlpha: 1, y: 0, duration: reduce ? 0 : .24, ease: "power3.out",
-        onComplete: () => {
-          if (transferFocus && (document.activeElement === document.body || idle.contains(document.activeElement))) {
-            live.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
-          }
-        },
-      });
-    }, dock);
-    return () => media.revert();
-  }, { scope: dock, dependencies: [hasPanel, reviewing], revertOnUpdate: true });
   return (
     <section className="evidence-panel">
       <div className="section-head">
         <h2>{claim.photos.some((p) => p.kind === "video") ? "Evidence" : "Photos"}</h2>
-        <span>{claim.photos.length} files</span>
+        {firstPinned >= 0 && !annotations[i].length ? <button className="text-button" onClick={() => setIndex(firstPinned)}><MapPin size={15} />View photo pins</button> : <span>{claim.photos.length} files</span>}
       </div>
       <div className="evidence-frame">
-        <div className="evidence-visual">
-        <Media
-          key={file.src}
-          file={file}
-        />
-        <EvidenceScan active={reviewing} />
-        </div>
+        <PhotoViewer file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} />
         <div className="photo-caption">
           <span>
             <b>{String(i + 1).padStart(2, "0")}</b> {file.name}
@@ -206,13 +209,14 @@ export function Evidence({
         {claim.photos.map((p, n) => (
           <button
             key={n}
-            aria-label={"Show " + p.name}
+            aria-label={`Show ${p.name}${annotations[n].length ? ", " + annotations[n].length + " photo pins" : ""}`}
             aria-pressed={i === n}
             className="thumb"
             onClick={() => setIndex(n)}
           >
             <img alt="" src={p.poster ?? p.src} />
             {p.kind === "video" && <Play size={14} />}
+            {annotations[n].length > 0 && <span className="thumb-pin-count" title={`${annotations[n].length} photo pins`}>{annotations[n].length}</span>}
           </button>
         ))}
         {!readOnly && claim.stage !== "authorized" && (
@@ -220,39 +224,23 @@ export function Evidence({
             disabled={locked}
             onClick={onAdd}
             className="add-photo"
-            aria-label="Record received evidence"
-            title="Record received evidence"
+            aria-label="Add policyholder response"
+            title="Add policyholder response"
           >
             <Plus size={18} />
           </button>
         )}
       </div>
-      <div ref={dock} className="evidence-analysis-dock" data-active={hasPanel} data-running={reviewing}>
-      <div className="analysis-idle" inert={hasPanel} aria-hidden={hasPanel}>
-      <div className="evidence-actions">
-        {!readOnly && claim.stage !== "authorized" && (
-          <div className="button-row">
-          <button className="secondary" disabled={locked} onClick={() => onRequest(i)}>Request evidence</button>
-          <button className={primaryAnalysis && !outcomeVisible ? "primary" : "secondary"} disabled={locked || claim.evidenceRequests?.some(request => request.status === "awaiting")} title={claim.evidenceRequests?.some(request => request.status === "awaiting") ? "Awaiting requested evidence" : undefined} onClick={startReview}>
-            {reviewing ? <LoaderCircle size={15} className="spin" /> : <ScanLine size={15} />}
-            {reviewing ? "Analyzing…" : claim.decision || claim.lines.length ? "Reanalyze evidence" : "Analyze evidence"}
-          </button>
-          </div>
-        )}
-      </div>
-      </div>
-      <div className="analysis-live" inert={!hasPanel} aria-hidden={!hasPanel}>
-        {analysisPanel}
-        {hasPanel && !reviewing && !readOnly && claim.stage !== "authorized" && <div className="analysis-secondary-actions evidence-actions">
-          <button className="text-button" disabled={locked} onClick={() => onRequest(i)}>Request evidence</button>
-          <button className="text-button" disabled={locked || claim.evidenceRequests?.some(request => request.status === "awaiting")} onClick={startReview}>Reanalyze evidence</button>
-        </div>}
-      </div>
-      </div>
-      <EvidenceRequests claim={claim} />
+      {!reviewing && !readOnly && claim.stage !== "authorized" && <div className="evidence-actions button-row">
+        <button className="text-button" disabled={locked} onClick={() => onRequest?.(i)}>Request additional evidence</button>
+        {(!outcomeVisible || (!primaryAnalysis && !claim.evidenceUpdated)) && <button className="text-button" disabled={locked || claim.evidenceRequests?.some(r => r.status === "awaiting")} onClick={onReview}>
+          <ScanLine size={14} />{claim.decision || claim.lines.length ? "Assess evidence again" : "Assess evidence"}
+        </button>}
+      </div>}
+      <EvidenceRequests claim={claim} onRespond={readOnly || locked ? undefined : onRespond} />
       {expanded && (
         <Modal title={file.name} wide close={() => setExpanded(false)}>
-          <Media file={file} />
+          <PhotoViewer file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} />
         </Modal>
       )}
     </section>

@@ -1,0 +1,5 @@
+.env*
+assets/demo-sources/
+.next/
+node_modules/
+*.tsbuildinfo

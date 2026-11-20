@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 export function Modal({
@@ -14,21 +14,23 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
+  const titleId = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
     const d = ref.current;
+    const opener = document.activeElement;
     d?.showModal();
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    heading.current?.focus({ preventScroll: true });
     return () => {
       d?.close();
-      document.body.style.overflow = before;
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
   return (
     <dialog
       className={"modal " + (wide ? "wide" : "")}
       ref={ref}
-      aria-label={title}
+      aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
         close();
@@ -47,12 +49,12 @@ export function Modal({
       }}
     >
       <div className="modal-head">
-        <h2>{title}</h2>
+        <h2 id={titleId} ref={heading} tabIndex={-1}>{title}</h2>
         <button className="iconbtn" aria-label="Close dialog" onClick={close}>
           <X size={18} />
         </button>
       </div>
-      {children}
+      <div className="modal-body">{children}</div>
     </dialog>
   );
 }

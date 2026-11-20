@@ -68,6 +68,7 @@ export const evidenceDecision = z.object({
 });
 export const qualitySchema = z.object({
   summary: z.string().min(1).max(1200),
+  references: z.array(z.object({issue:z.string(),photos:z.array(z.number().int().min(1).max(8))})).optional(),
   gaps: z.array(z.string().max(300)).max(8),
   ambiguities: z.array(z.string().max(300)).max(8).optional(),
 });
@@ -78,7 +79,14 @@ export const lineSchema = z.object({
   labor: z.number().nonnegative(),
   source: z.string(),
   needsQuote: z.boolean(),
+  quoteConfirmedAt: z.iso.datetime().optional(),
+  zeroCostReason: z.string().max(600).optional(),
+  inspection: z.discriminatedUnion("status", [
+    z.object({ status: z.literal("booked") }),
+    z.object({ status: z.literal("completed"), findings: z.string().trim().min(1).max(600), repairDecision: z.string().trim().min(1).max(600) }),
+  ]).optional(),
   inspectionNote: z.string().max(600).optional(),
+  editedByAgentAt: z.iso.datetime().optional(),
   catalogueId: z.string().optional(),
 });
 export type Line = z.infer<typeof lineSchema>;
@@ -101,9 +109,11 @@ export const evidenceRequestSchema = z.object({
   recipient: z.enum(["Policyholder", "Repair shop"]),
   status: z.enum(["awaiting", "received"]),
   receivedAt: z.iso.datetime().optional(),
+  repairItems: z.array(z.string()).optional(),
   message: z.string().max(800),
   pins: z.array(z.object({
     id: z.string(),
+    source: z.enum(["ai", "agent", "reference"]).optional(),
     photoId: z.string(),
     photoName: z.string(),
     x: z.number().min(0).max(100),
@@ -129,7 +139,9 @@ export const claimSchema = z.object({
   vehicle: z.string(),
   details: z.string(),
   accidentDescription: z.string().max(1800).optional(),
+  flags: z.array(z.object({ text:z.string(), photos:z.array(z.number().int().min(1).max(8)) })).optional(),
   scopeNeedsReview: z.boolean().optional(),
+  evidenceUpdated: z.boolean().optional(),
   scopeReviewed: z.boolean().optional(),
   created: z.iso.datetime(),
   sample: z.boolean(),
@@ -147,7 +159,7 @@ export const claimSchema = z.object({
   excludedFindings: findingsSchema.optional(),
   lines: z.array(lineSchema),
   log: z.array(
-    z.object({ title: z.string(), detail: z.string(), at: z.iso.datetime() }),
+    z.object({ title: z.string(), detail: z.string(), at: z.iso.datetime(), delivery: z.enum(["unread","viewed","recalled"]).optional() }),
   ),
   request: z.string(),
   override: z.boolean(),
@@ -196,7 +208,7 @@ export const money = (value: number) =>
 export const total = (lines: Line[]) =>
   lines.reduce(
     (cents, line) =>
-      cents + Math.round(line.parts * 100) + Math.round(line.labor * 100),
+      line.needsQuote ? cents : cents + Math.round(line.parts * 100) + Math.round(line.labor * 100),
     0,
   ) / 100;
 export const displayDate = (date: string) =>
@@ -211,11 +223,22 @@ export const addEvent = (
   title: string,
   detail: string,
   change: Partial<Claim> = {},
+  delivery?: "unread",
 ): Claim => ({
   ...claim,
   ...change,
-  log: [{ title, detail, at: new Date().toISOString() }, ...claim.log],
+  log: [{ title, detail, delivery, at: new Date().toISOString() }, ...claim.log],
 });
+
+export const inspectionPending = (finding: Finding, line?: Line) =>
+  requiresInspection(finding) && line?.inspection?.status !== "completed";
+
+export const inspectionSummary = (line: Line) => {
+  const record = line.inspection;
+  if (record?.status === "completed") return "Inspection completed · " + record.findings + " · Repair decision: " + record.repairDecision;
+  if (record?.status === "booked") return "Inspection booked · Awaiting findings";
+  return "";
+};
 
 export const requiresInspection = (finding: Finding) =>
   finding.operation === "Inspect" || finding.code === "structure" ||
