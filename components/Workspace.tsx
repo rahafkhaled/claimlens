@@ -366,6 +366,7 @@ export default function Workspace({ example }: { example?: Claim }) {
     <Evidence
       key={c.id}
       claim={c}
+      saveAnnotation={save}
       onAdd={() => open("add")}
       onRespond={respondToRequest}
       onRequest={(index) => request("more", index)}

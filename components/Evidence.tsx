@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, MapPin, Maximize2, Plus, Play, ScanLine } from "lucide-react";
-import { type Claim, type Photo, type EvidencePin, needsScopeReview, money } from "@/lib/claims";
+import { type Claim, type Photo, type EvidencePin, needsScopeReview, money, addEvent } from "@/lib/claims";
 import { pinLabel } from "@/lib/photo-pins";
 import { Modal } from "./ui";
 import { EvidenceRequests } from "./EvidenceRequest";
@@ -13,7 +13,7 @@ const clock = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
   String(Math.floor(seconds % 60)).padStart(2, "0");
-type PhotoPin = { label?: string; source?: EvidencePin["source"]; id: string; x: number; y: number; title: string; detail: string };
+type PhotoPin = { findingIndex?: number; agentNote?: boolean; label?: string; source?: EvidencePin["source"]; id: string; x: number; y: number; title: string; detail: string };
 
 function overview(photo: Photo) {
   return /overview|wide shot|^(front|rear)[ -](left|right)( view)?$/i.test(photo.name);
@@ -38,16 +38,19 @@ export function photoPins(claim: Claim, photo: Photo, index: number): PhotoPin[]
       ...pin, title: "Evidence request", detail: pin.comment,
     }))
   );
-  if (needsScopeReview(claim) || overview(photo)) return requests;
-  return requests.concat(claim.findings.flatMap((finding, n) => {
+  const notes = (claim.agentPins ?? []).flatMap((pin, n) => pin.photoId === photo.id
+    ? [{ ...pin, agentNote: true, label: "A" + (n + 1), title: "Photo comment", detail: pin.comment }] : []);
+  const saved = requests.concat(notes);
+  if (needsScopeReview(claim) || overview(photo)) return saved;
+  return saved.concat(claim.findings.flatMap((finding, n) => {
     const ref = bestEvidence(claim, n);
     if (!ref || ref.item !== index + 1) return [];
     const [top, left, bottom, right] = ref.box;
-    return [{ id: "finding-" + n, label: String(n + 1), source: "ai" as const,
+    return [{ id: "finding-" + n, label: String(n + 1), findingIndex: n, source: finding.originalDamage !== undefined ? "agent" as const : "ai" as const,
       x: (left + right) / 20, y: (top + bottom) / 20, title: finding.component, detail: finding.damage }];
   }));
 }
-function Media({ file, start, pins, initialPin }: { initialPin?: string; file: Photo; start?: number; pins?: PhotoPin[] }) {
+function Media({ file, start, pins, initialPin, editPin }: { editPin?: (pin: PhotoPin) => void; initialPin?: string; file: Photo; start?: number; pins?: PhotoPin[] }) {
   const [selected, setSelected] = useState<string | undefined>(initialPin);
   const active = pins?.find(pin => pin.id === selected) ?? pins?.[0];
   const video = useRef<HTMLVideoElement>(null);
@@ -81,11 +84,13 @@ function Media({ file, start, pins, initialPin }: { initialPin?: string; file: P
           aria-pressed={active?.id === pin.id} onClick={() => setSelected(pin.id)}><span>{pin.label ?? n + 1}</span></button>)}
       </div>
     </div>
-    {active && <div className="gallery-pin-note" aria-live="polite"><MapPin size={16} /><div><strong>{pinLabel(active.source)} · {active.title}</strong><p>{active.detail}</p></div></div>}
+    {active && <div className="gallery-pin-note" aria-live="polite"><MapPin size={16} /><div><strong>{pinLabel(active.source)} · {active.title}</strong><p>{active.detail}</p>{editPin && (active.findingIndex !== undefined || active.agentNote) &&
+      <button type="button" className="text-button" onClick={() => editPin(active)}>Edit comment</button>}</div></div>}
     </>
   );
 }
-export function PhotoViewer({ file, index, count, select, start, pins, initialPin }: {
+export function PhotoViewer({ file, index, count, select, start, pins, initialPin, editPin }: {
+  editPin?: (pin: PhotoPin) => void;
   initialPin?: string; file: Photo; index: number; count: number; select: (index: number) => void; start?: number; pins?: PhotoPin[];
 }) {
   function move(delta: number) { select((index + delta + count) % count); }
@@ -96,7 +101,7 @@ export function PhotoViewer({ file, index, count, select, start, pins, initialPi
         event.preventDefault(); move(event.key === "ArrowLeft" ? -1 : 1);
       }
     }}>
-    <Media key={file.src + "-" + index + "-" + (initialPin ?? "")} initialPin={initialPin} file={file} start={start} pins={pins} />
+    <Media key={file.src + "-" + index + "-" + (initialPin ?? "")} initialPin={initialPin} editPin={editPin} file={file} start={start} pins={pins} />
     {count > 1 && <>
       <button type="button" className="photo-prev" aria-label="Previous photo" onClick={() => move(-1)}><ChevronLeft /></button>
       <button type="button" className="photo-next" aria-label="Next photo" onClick={() => move(1)}><ChevronRight /></button>
@@ -180,6 +185,7 @@ export function Evidence({
   claim,
   onAdd,
   onRespond,
+  saveAnnotation,
   onReview,
   onRequest,
   locked = false,
@@ -187,7 +193,7 @@ export function Evidence({
   readOnly = false,
   primaryAnalysis = true,
   outcomeVisible = false,
-}: { claim: Claim; onRespond?: (id: string) => void; locked?: boolean; reviewing?: boolean; primaryAnalysis?: boolean; outcomeVisible?: boolean } & ({
+}: { claim: Claim; saveAnnotation?: (next: Claim, previous: Claim) => Promise<boolean>; onRespond?: (id: string) => void; locked?: boolean; reviewing?: boolean; primaryAnalysis?: boolean; outcomeVisible?: boolean } & ({
   readOnly: true; onAdd?: never; onReview?: never; onRequest?: never;
 } | {
   readOnly?: boolean;
@@ -198,6 +204,50 @@ export function Evidence({
   const [index, setIndex] = useState<number | null>(null),
     [expanded, setExpanded] = useState(false);
   const [target, setTarget] = useState<{ finding: number; click: number }>();
+  const [editor, setEditor] = useState<{base: Claim; photoIndex: number; pin?: PhotoPin}>();
+  const [comment, setComment] = useState("");
+  const [point, setPoint] = useState<{x: number; y: number}>();
+  const [saving, setSaving] = useState(false);
+  const [savedPin, setSavedPin] = useState<string>();
+  const editable = !!saveAnnotation && !locked && !reviewing && !readOnly &&
+    claim.stage !== "authorized" && claim.stage !== "senior" && !!claim.decision;
+  function edit(pin?: PhotoPin) {
+    setExpanded(false);
+    setEditor({base: claim, photoIndex: i, pin});
+    setComment(pin?.detail ?? "");
+    setPoint(pin ? {x: pin.x, y: pin.y} : undefined);
+  }
+  async function saveComment() {
+    if (!editor || !saveAnnotation || saving || !comment.trim()) return;
+    const {base, photoIndex, pin} = editor;
+    const findingIndex = pin?.findingIndex;
+    const photo = base.photos[photoIndex];
+    const text = comment.trim();
+    let next: Claim;
+    let id: string;
+    if (findingIndex !== undefined && pin) {
+      const finding = base.findings[findingIndex];
+      next = addEvent(base, "Finding comment edited", finding.component + " · " + text, {
+        findings: base.findings.map((f, n) => n === findingIndex ? {...f, originalDamage: f.originalDamage ?? f.damage, damage: text} : f),
+        lines: base.lines.map((l, n) => n === findingIndex ? {...l, editedByAgentAt: new Date().toISOString()} : l),
+      });
+      id = pin.id;
+    } else {
+      if (!point) return;
+      id = pin?.id ?? crypto.randomUUID();
+      const photoId = photo.id ?? crypto.randomUUID();
+      const note: EvidencePin = {id, source: "agent", photoId, photoName: photo.name, ...point, comment: text};
+      const old = base.agentPins ?? [];
+      next = addEvent(base, pin ? "Photo comment edited" : "Photo comment added", photo.name + " · " + text, {
+        photos: base.photos.map((p, n) => n === photoIndex ? {...p, id: photoId} : p),
+        agentPins: pin ? old.map(p => p.id === id ? note : p) : [...old, note],
+      });
+    }
+    setSaving(true);
+    try { if (await saveAnnotation(next, base)) { setSavedPin(id); setIndex(photoIndex); }
+      setEditor(undefined);
+    } finally { setSaving(false); }
+  }
   const findings = !needsScopeReview(claim) ? claim.findings : [];
   const annotations = claim.photos.map((photo, n) => photoPins(claim, photo, n));
   const firstPinned = annotations.findIndex(pins => pins.length > 0);
@@ -209,9 +259,12 @@ export function Evidence({
         <h2>{claim.photos.some((p) => p.kind === "video") ? "Evidence" : "Photos"}</h2>
         {firstPinned >= 0 && !annotations[i].length ? <button className="text-button" onClick={() => setIndex(firstPinned)}><MapPin size={15} />View photo pins</button> : <span>{claim.photos.length} files</span>}
       </div>
+      {editable && file.kind !== "video" && <div className="button-row">
+        <button type="button" className="secondary" onClick={() => edit()}><MapPin size={15} />Add agent pin</button>
+      </div>}
       <div className={findings.length ? "finding-gallery" : undefined}>
       <div className="evidence-frame">
-        <PhotoViewer key={target?.click} file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} initialPin={target && "finding-" + target.finding} />
+        <PhotoViewer key={target?.click} file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} initialPin={savedPin ?? (target && "finding-" + target.finding)} editPin={editable ? edit : undefined} />
         <div className="photo-caption">
           <span>
             <b>{String(i + 1).padStart(2, "0")}</b> {file.name}
@@ -230,7 +283,7 @@ export function Evidence({
           const ref = bestEvidence(claim, n);
           const photo = ref && claim.photos[ref.item - 1];
           return <button key={n} disabled={!ref} aria-pressed={target?.finding === n && ref?.item === i + 1}
-            onClick={() => { if (ref) { setIndex(ref.item - 1); setTarget(old => ({ finding: n, click: (old?.click ?? 0) + 1 })); } }}>
+            onClick={() => { if (ref) { setSavedPin(undefined); setIndex(ref.item - 1); setTarget(old => ({ finding: n, click: (old?.click ?? 0) + 1 })); } }}>
             <b>{n + 1}</b><span><strong>{finding.component}</strong><small>{photo?.name ?? "No linked photo"}</small></span>
           </button>;
         })}
@@ -271,9 +324,34 @@ export function Evidence({
       <EvidenceRequests claim={claim} onRespond={readOnly || locked ? undefined : onRespond} />
       {expanded && (
         <Modal title={file.name} wide close={() => setExpanded(false)}>
-          <PhotoViewer key={target?.click} file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} initialPin={target && "finding-" + target.finding} />
+          <PhotoViewer key={target?.click} file={file} index={i} count={claim.photos.length} select={setIndex} pins={annotations[i]} initialPin={savedPin ?? (target && "finding-" + target.finding)} editPin={editable ? edit : undefined} />
         </Modal>
       )}
+      {editor && <Modal title={editor.pin ? "Edit comment" : "Add agent pin"} close={() => setEditor(undefined)}>
+        <form onSubmit={e => { e.preventDefault(); void saveComment(); }}>
+          {editor.pin?.findingIndex === undefined && <>
+            <p>Choose a spot on the photo. Use the arrow keys to adjust the pin.</p>
+            <div className="request-photo">
+              <img src={editor.base.photos[editor.photoIndex].src} alt={editor.base.photos[editor.photoIndex].name} />
+              <button type="button" className="pin-surface" aria-label="Place agent pin" onClick={e => {
+                const box = e.currentTarget.getBoundingClientRect();
+                setPoint(e.detail ? {x: 100 * (e.clientX - box.left) / box.width, y: 100 * (e.clientY - box.top) / box.height} : {x:50,y:50});
+              }} onKeyDown={e => {
+                const delta: Record<string, number[]> = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]};
+                if (!delta[e.key]) return;
+                e.preventDefault();
+                const [dx,dy] = delta[e.key];
+                setPoint(p => ({x:Math.min(100,Math.max(0,(p?.x ?? 50)+dx)),y:Math.min(100,Math.max(0,(p?.y ?? 50)+dy))}));
+              }} />
+              {point && <span className="evidence-pin pointer-events-none" data-source="agent" style={{left:point.x+"%",top:point.y+"%"}}><span>A</span></span>}
+            </div>
+          </>}
+          <label>{editor.pin?.findingIndex !== undefined ? editor.pin.title : "Internal photo comment"}
+            <textarea autoFocus rows={3} required maxLength={editor.pin?.findingIndex !== undefined ? 240 : 600} value={comment} onChange={e => setComment(e.target.value)} />
+          </label>
+          <button className="primary" disabled={saving || !point || !comment.trim()}>Save comment</button>
+        </form>
+      </Modal>}
     </section>
   );
 }

@@ -337,6 +337,7 @@ export function Review({
                     }),
                     findings: observations.map((f, i) => !selected.includes(i) ? c.findings[i] : ({
                       ...f,
+                      originalDamage: f.originalDamage ?? (f.damage !== c.findings[i].damage ? c.findings[i].damage : undefined),
                       repair: draft[i]?.repair ?? f.repair,
                     })),
                   },

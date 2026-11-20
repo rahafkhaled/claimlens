@@ -108,6 +108,27 @@ async function untilStored(p, predicate) {
     assert(await p.getByRole('button', {name: 'Photo pin 2: Left fender'}).isVisible());
     assert((await p.locator('.photo-caption').innerText()).includes('Fender close-up'));
 
+    await p.getByRole('button', {name:'Edit comment', exact:true}).click();
+    await p.getByRole('dialog').getByRole('textbox').fill('Agent confirmed a crease above the wheel arch.');
+    await p.getByRole('button', {name:'Save comment'}).click();
+    await p.getByText('Agent pin · Left fender').waitFor();
+    await p.getByRole('button', {name:'Add agent pin'}).click();
+    await p.getByRole('button', {name:'Place agent pin'}).click({position:{x:80,y:70}});
+    await p.getByLabel('Internal photo comment').fill('Check panel clearance.');
+    await p.getByRole('button', {name:'Save comment'}).click();
+    await p.getByText('Agent pin · Photo comment').waitFor();
+    const annotated = (await stored(p)).claims.find(c => c.id === 'CLM-2084');
+    assert.equal(annotated.stage, 'review');
+    assert.equal(annotated.evidenceRequests?.length ?? 0, 0);
+    assert.equal(annotated.agentPins[0].comment, 'Check panel clearance.');
+    assert.equal(annotated.findings[1].originalDamage, presets[0].findings[1].damage);
+    await p.reload(); await ready(p);
+    await choose(p, 'CLM-2084');
+    await p.getByRole('button', {name:'Evidence 6',exact:true}).click();
+    await p.getByRole('button', {name:/Show Fender close-up/}).click();
+    await p.getByRole('button', {name:'Photo pin A1: Photo comment'}).click();
+    await p.getByText('Check panel clearance.', {exact:true}).waitFor();
+
     await choose(p, 'CLM-2085');
     await p.getByRole('button', {name:'View as policyholder'}).click();
     const portal = p.getByRole('dialog', {name:'Your evidence request'});
